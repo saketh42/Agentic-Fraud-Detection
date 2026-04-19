@@ -1,0 +1,92 @@
+@startuml MAPE-K_Fraud_Detection_Full
+
+' ======================================================
+' LAYER 1: INPUT/OUTPUT
+' ======================================================
+cloud "Layer 1: Input/Output" {
+    [Data Input\n(Social Media, LLM) as INPUT
+    [Output/Decision\n(PASS/FAIL, Metrics)] as OUTPUT
+}
+
+' ======================================================
+' LAYER 2: AGENT CONTROL LOOP
+' ======================================================
+package "Layer 2: Agent Control Loop" {
+    
+    [Drift Agent\n(Monitor)] as DRIFT
+    note right: Monitors PSI, KS\nThreshold: PSI>0.20, KS>0.05
+    
+    [Balance Agent\nexecute] as BALANCE
+    note right: CTGAN\nBalancing JSD<0.20
+    
+    [Training Agent\n(plan)] as TRAINING
+    note right: Model Training\nAdversarial Training
+    
+    [Evaluation Agent\n(analyze)] as EVAL
+    note right: F1, ROC-AUC\nRobustness Check
+    
+    [Loop Control] as LOOP
+}
+
+' ======================================================
+' LAYER 3: KNOWLEDGE BASE
+' ======================================================
+database "Layer 3: Knowledge Base" {
+    frame "Knowledge" {
+        [Run History]
+        [Drift Record]
+        [Model Versions]
+        [Metrics History]
+    }
+}
+
+' ======================================================
+' ROUTES (Routes 1-14)
+' ======================================================
+
+' Route 1: Input to Ingestion
+INPUT -[thick]-> DRIFT : "Route 1: Raw Data"
+
+' Route 2: Check Drift
+DRIFT -> DRIFT : "Route 2: Check PSI/KS"
+
+' Route 3: Drift OK → Balance
+DRIFT -> BALANCE : "Route 3: Drift OK"
+
+' Route 4: Drift Not OK → Alert
+DRIFT -> EVAL : "Route 4: Drift Alert"
+
+' Route 5: Balance Complete → Evaluation
+BALANCE -> EVAL : "Route 5: Balanced"
+
+' Route 6: Training Complete → Evaluation
+TRAINING -> EVAL : "Route 6: Trained"
+
+' Route 7: Evaluation → Loop Control
+EVAL -> LOOP : "Route 7: Results"
+
+' Route 8: Go Decision → Retrain
+LOOP -> TRAINING : "Route 8: Go (retrain)"
+
+' Route 9: No-Go → Re-balance
+LOOP -> BALANCE : "Route 9: No-Go (re-balance)"
+
+' Route 10: Model Approved → Output
+EVAL -> OUTPUT : "Route 10: Deploy"
+
+' Route 11: Update Knowledge
+EVAL -> KNOWLEDGE : "Route 11: Log Metrics"
+
+' Route 12: Historical Context
+DRIFT -> KNOWLEDGE : "Route 12: Get History"
+
+' ======================================================
+' FEEDBACK LOOPS (L1-L5)
+' ======================================================
+note as: L1: Monitor Loop\n(Alert triggers check)
+note as: L2: Balance Loop\n(Re-balance if needed)
+note as: L3: Training Loop\n(Self-improvement)
+note as: L4: Evaluation Loop\n(Quality check)
+note as: L5: Knowledge Update\n(Persist results)
+
+@enduml

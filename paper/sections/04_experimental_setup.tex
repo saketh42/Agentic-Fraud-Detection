@@ -1,0 +1,43 @@
+\section{Experimental Setup}\label{sec:experimental}
+
+This section describes our experimental setup including the dataset, model configuration, and evaluation metrics.
+
+\subsection{Dataset}
+
+We used a dataset collected from social media platforms containing labeled fraud examples. The dataset consists of transactions labeled as either fraudulent or normal. The data was collected over a period of several months to capture diverse fraud patterns.
+
+The raw dataset contained 9000 transactions. After filtering out low-confidence labels from the LLM annotation process, we retained high-quality examples for training and testing. The final dataset was split into training and test sets using a 70-30 ratio. The training set was further split into training and validation sets using an 80-20 ratio.
+
+To handle class imbalance, we applied CTGAN to generate synthetic examples of the minority class. The optimal number of synthetic samples was determined through experiments, as discussed in the results section.
+
+For concept drift experiments, we simulated drift by introducing temporal variations in the test data. This allowed us to evaluate the system's ability to detect and adapt to changing patterns.
+
+\subsection{Model Configuration}
+
+We used XGBoost as our base classifier. XGBoost is a gradient boosting algorithm that works well with tabular data and has been successfully applied to fraud detection tasks. The model was trained with the following key parameters.
+
+The learning rate was set to 0.1, which controls how much the model updates its weights with each iteration. The maximum depth was limited to 6 to prevent overfitting. The number of estimators was set to 100. We used binary cross-entropy as the objective function.
+
+For adversarial training \cite{madry2018adversarial}, we added small perturbations to the training data. The perturbation size was set to 0.05, representing 5 percent of the feature range. The model was trained on both clean and perturbed examples to learn robust classification boundaries.
+
+The CTGAN \cite{xu2019ctgan} was trained with 100 epochs and a batch size of 16. The generator and discriminator dimensions were set to 64. These values were chosen based on preliminary experiments to balance training time and quality.
+
+To evaluate robustness, we used the TabularBench framework \cite{simonetto2024tabularbench} which provides standard benchmarks for adversarial robustness on tabular data.
+
+\subsection{Evaluation Metrics}
+
+We evaluated our system using several standard metrics.
+
+For classification performance, we used accuracy, precision, recall, and F1 score. Accuracy measures the overall proportion of correct predictions. Precision measures how many predicted fraud cases are actually fraud. Recall measures how many actual fraud cases are detected. F1 score is the harmonic mean of precision and recall, providing a balanced measure.
+
+We also used ROC-AUC, which measures the area under the receiver operating characteristic curve. This metric evaluates the model's ability to distinguish between fraud and normal cases across different decision thresholds.
+
+For drift detection \cite{goudar2026adaptive}, we used Population Stability Index and Kolmogorov-Smirnov test. PSI values above 0.20 indicate significant drift requiring action. KS values above 0.05 indicate significant distribution changes.
+
+For robustness evaluation, we measured the model's performance under adversarial perturbations at different epsilon values. The robustness score is calculated as the ratio of F1 under attack to clean F1. We target a robustness score above 0.60.
+
+For data quality, we used Jensen-Shannon Divergence to compare synthetic and real data distributions. JSD values below 0.20 indicate high-quality synthetic data that maintains statistical properties of the original dataset.
+
+\subsection{Experimental Environment}
+
+All experiments were conducted on a standard workstation with Python implementation. Key libraries used include scikit-learn for model training and evaluation, XGBoost for gradient boosting, and SDV for CTGAN. The system was run multiple times to ensure consistency of results.

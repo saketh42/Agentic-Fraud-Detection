@@ -1,0 +1,51 @@
+\section{Methodology}\label{sec:methodology}
+
+This section describes the four main components of our agentic fraud detection system.
+
+\subsection{Data Collection and Annotation}
+
+We collected fraud-related data from social media platforms where people share their scam experiences. The data collection process involved two main steps.
+
+First, we scraped posts from social media using targeted keywords related to common fraud types such as investment scams, phishing, and payment fraud. The scraping targeted posts from the past several months to capture recent fraud patterns. We collected post content, timestamps, and user interactions.
+
+Second, we used large language models to automatically label the collected data. The LLM was prompted as an expert fraud analyst to identify whether each post described actual fraud using the post and the comments of that post, extract the type of fraud if present, and note payment methods used. The LLM also provided confidence scores for its predictions. Posts with low confidence scores were filtered out to ensure data quality.
+
+The resulting dataset contains labeled examples of both fraudulent and normal transactions. This labeled data serves as the foundation for training our detection models.
+
+\subsection{Data Augmentation using CTGAN}
+
+Fraud detection datasets typically have far more normal transactions than fraudulent ones. This class imbalance makes it difficult for models to learn to detect fraud effectively. We address this using CTGAN, a generative adversarial network designed for tabular data \cite{xu2019ctgan}.
+
+CTGAN consists of two neural networks that work against each other. The generator creates synthetic data that looks real, while the discriminator tries to distinguish between real and fake data. Through training, the generator learns to produce realistic samples that match the statistical properties of the original data.
+
+We trained CTGAN on our minority class examples, which in this case are the normal transactions. The trained model generates new synthetic examples of normal transactions. These synthetic examples help balance the dataset, giving the model more examples to learn from.
+
+To ensure the quality of synthetic data, we validated it using statistical tests. We compared the distribution of synthetic data with real data using Jensen-Shannon Divergence to ensure the generated samples maintain the same statistical properties as the original dataset.
+
+\subsection{Adversarial Training}
+
+Fraudsters can deliberately try to trick detection systems by modifying their transaction patterns. To make our model robust against such attacks, we use adversarial training \cite{madry2018adversarial}.
+
+Adversarial training involves adding small perturbations to the input data during training. These perturbations are calculated to maximize the model's loss, creating worst-case examples. By training on these adversarial examples, the model learns to handle attacks and maintains good performance even when inputs are modified \cite{goodfellow2014gan}.
+
+In our implementation, we add small random noise to the training data to simulate potential attacks. The model learns to correctly classify both clean and perturbed examples. This process improves the model's robustness without significantly affecting its performance on normal transactions.
+
+We test the model's robustness by measuring performance degradation under different attack strengths. Our experiments show that adversarial training helps the model maintain high accuracy even when facing adversarial perturbations.
+
+\subsection{MAPE-K Agent Architecture}
+
+The core of our system is the MAPE-K architecture, which enables autonomous adaptation. MAPE-K stands for Monitor, Analyze, Plan, Execute, and Knowledge. This architecture was originally proposed by IBM for autonomic computing systems \cite{ibm2005autonomic}.
+
+The Monitor component continuously watches the system's performance and incoming data. It tracks metrics like model accuracy and detects changes in the data distribution. When significant changes occur, it raises alerts.
+
+The Analyze component processes the Monitor's findings. It determines whether detected changes represent actual concept drift that requires intervention. It also evaluates the severity of any drift detected.
+
+The Plan component decides what actions to take based on the analysis. If drift is detected, it decides whether retraining is needed and what parameters to use. It considers factors like how severe the drift is and how much performance has degraded.
+
+The Execute component carries out the planned actions. This includes triggering retraining with the balanced dataset, updating the model, and deploying new versions.
+
+The Knowledge base stores historical information about the system. This includes past drift events, model versions, performance metrics, and training history. The Knowledge base helps the system learn from past experiences and make better decisions over time.
+
+Our implementation includes four specialized agents. The Drift Agent monitors for concept drift using population stability index and Kolmogorov-Smirnov tests \cite{goudar2026adaptive}. The Balance Agent handles class rebalancing using CTGAN when needed. The Training Agent manages model training, including adversarial training. The Evaluation Agent assesses model performance and decides whether the system meets quality standards.
+
+When drift is detected, the system automatically triggers a retraining cycle. The Balance Agent first ensures the dataset is properly balanced. The Training Agent then retrains the model with adversarial examples. Finally, the Evaluation Agent checks if performance meets the required thresholds. If so, the new model is deployed. If not, the cycle repeats with adjusted parameters.

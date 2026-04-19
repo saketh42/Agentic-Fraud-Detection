@@ -1,0 +1,178 @@
+@startuml MAPE_K_Agentic_Fraud_Detection_System
+/' ========================================================
+   MAPE-K Agentic Fraud Detection System
+   3-Layer Architecture with Routes and Feedback Loops
+   ======================================================== '/
+
+skinparam component {
+    backgroundColor White
+    borderColor Black
+    arrowColor #333
+}
+
+skinparam rectangle {
+    backgroundColor #e6f3ff
+    borderColor #0066cc
+    roundcorner 10
+}
+
+skinparam cloud {
+    backgroundColor #fffbe6
+    borderColor #cc9900
+}
+
+skinparam database {
+    backgroundColor #e6ffe6
+    borderColor #00aa00
+}
+
+skinparam package {
+    backgroundColor #f0f0f0
+    borderColor #666
+}
+
+' ========================================================
+' LAYER 1: INPUT/OUTPUT
+' ========================================================
+cloud "LAYER 1: INPUT/OUTPUT" {
+    [Data Input\n• Social Media\n• LLM Annotation\n• Raw Data] as INPUT
+    [Output/Decision\n• PASS/FAIL\n• F1 Score\n• ROC-AUC\n• Robustness] as OUTPUT
+}
+
+' ========================================================
+' LAYER 2: AGENT CONTROL LOOP
+' ========================================================
+package "LAYER 2: AGENT CONTROL LOOP" {
+    
+    [Drift Agent\n(Monitor)] as DRIFT <<Route 2>>
+    note right: Monitors: PSI, KS\nThreshold: PSI>0.20\nKS>0.05
+    
+    [Balance Agent\n(Execute)] as BALANCE <<Route 3>>
+    note right: CTGAN\nBalancing\nJSD<0.20
+    
+    [Training Agent\n(Plan)] as TRAINING <<Route 6>>
+    note right: Model Training\nAdversarial Training
+    
+    [Evaluation Agent\n(Analyze)] as EVAL <<Route 5>>
+    note right: F1 Check\nROC-AUC Calc\nRobustness
+    
+    [Loop Control] as LOOPCTL <<Route 7>>
+}
+
+' ========================================================
+' LAYER 3: KNOWLEDGE BASE
+' ========================================================
+database "LAYER 3: KNOWLEDGE BASE" {
+    [Run History] as RUNHIST
+    [Drift Record] as DRIFTREC
+    [Model Versions] as MODELVER
+    [Metrics History] as METRICHIST
+}
+
+' ========================================================
+' ROUTES 1-14 (Solid Arrows)
+' ========================================================
+
+' Route 1: Input → Ingestion
+INPUT -[bold,thick,#0066cc]-> DRIFT : "R1: Raw Input"
+
+' Route 2: Check Drift
+DRIFT -> DRIFT : "R2: Check\nPSI/KS"
+
+' Route 3: Drift OK → Balance
+DRIFT -[bold,#00aa00]-> BALANCE : "R3: Drift OK"
+
+' Route 4: Drift Not OK → Alert
+DRIFT -[bold,#cc0000]-> EVAL : "R4: Alert!"
+
+' Route 5: Balance Complete → Evaluate
+BALANCE -[bold,#00aa00]-> EVAL : "R5: Balanced"
+
+' Route 6: Training Complete → Evaluate
+TRAINING -[bold,#00aa00]-> EVAL : "R6: Trained"
+
+' Route 7: Evaluation → Loop Control
+EVAL -[bold,#0066cc]-> LOOPCTL : "R7: Results"
+
+' Route 8: Go → Retrain
+LOOPCTL -[bold,#00aa00]-> TRAINING : "R8: Go\n(retrain)"
+
+' Route 9: No-Go → Re-balance
+LOOPCTL -[bold,#cc9900]-> BALANCE : "R9: No-Go\n(re-balance)"
+
+' Route 10: Model Approved → Output
+EVAL -[bold,#0066cc]-> OUTPUT : "R10: Deploy"
+
+' Route 11: Metrics → Knowledge Base
+EVAL -[bold,#00aa00]> METRICHIST : "R11: Log"
+
+' Route 12: Get Historical Context
+DRIFT -[dashed,#666]-> DRIFTREC : "R12: Context"
+
+' Route 13: Update Model Versions
+TRAINING -[bold,#00aa00]> MODELVER : "R13: Save"
+
+' Route 14: Log Run History
+EVAL -[bold,#00aa00]> RUNHIST : "R14: Log"
+
+' ========================================================
+' FEEDBACK LOOPS L1-L5 (Dotted Arrows)
+' ========================================================
+
+' L1: Monitor Loop
+note "L1: Monitor Loop\n(Alert triggers check)" as L1_NOTE
+L1_NOTE .[dotted,#cc0000]. DRIFT
+
+' L2: Balance Loop  
+note "L2: Balance Loop\n(Re-balance if needed)" as L2_NOTE
+L2_NOTE .[dotted,#cc9900]. BALANCE
+
+' L3: Training Loop
+note "L3: Training Loop\n(Self-improvement)" as L3_NOTE
+L3_NOTE .[dotted,#00aa00]. TRAINING
+
+' L4: Evaluation Loop
+note "L4: Evaluation Loop\n(Quality check)" as L4_NOTE
+L4_NOTE .[dotted,#0066cc]. EVAL
+
+' L5: Knowledge Update Loop
+note "L5: Knowledge Update\n(Persist results)" as L5_NOTE
+L5_NOTE .[dotted,#00aa00]. METRICHIST
+
+' ========================================================
+' COMPONENT DETAILS BOX
+' ========================================================
+note top of DRIFT
+    DRIFT AGENT (Monitor)
+    ─────────────────────
+    • Monitor PSI
+    • Monitor KS
+    • Raise alerts
+end note
+
+note top of BALANCE
+    BALANCE AGENT (Execute)
+    ─────────────────────
+    • CTGAN Generation
+    • Class Re-balance
+    • Validate with JSD
+end note
+
+note top of TRAINING
+    TRAINING AGENT (Plan)
+    ─────────────────────
+    • Model Training
+    • Adversarial Training
+    • Update Model
+end note
+
+note top of EVAL
+    EVALUATION AGENT (Analyze)
+    ─────────────────────
+    • Calculate F1
+    • Calculate ROC-AUC
+    • Check Robustness
+    • Pass/Fail Decision
+end note
+
+@enduml

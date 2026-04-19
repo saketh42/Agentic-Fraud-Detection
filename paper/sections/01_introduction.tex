@@ -1,0 +1,11 @@
+\section{Introduction}\label{sec:intro}
+
+Fraud is a major issue in today's digital economy. Financial losses from fraudulent transactions reach billions of dollars annually, affecting both businesses and individuals. Many fraud detection systems exist, but they face three key challenges. First, most datasets have far more normal transactions than fraudulent ones, making it hard for models to learn what fraud looks like \cite{dalpozzolo2015credit}. Second, fraud patterns change over time as scammers develop new techniques - this is called concept drift \cite{card2017}. Third, fraudsters can deliberately manipulate their behavior to bypass detection systems.
+
+Most existing approaches use single machine learning models that cannot adapt when patterns change. Some systems use rule-based methods, but these struggle to keep up with evolving fraud. Other solutions exist for individual problems like class imbalance or adversarial attacks, but there is no complete system that handles all three challenges together.
+
+This study aims to build an agentic fraud detection system that can adapt automatically. We use the MAPE-K architecture, where intelligent agents monitor the system, analyze conditions, plan responses, and execute actions. This allows the system to detect when fraud patterns shift and retrain itself without human help.
+
+We gathered data from social media platforms where people share their scam experiences. Large language models help label this data automatically. To handle class imbalance, we use CTGAN to create more examples of normal transactions. We also train the model with adversarial examples so it stays robust even when attacked. The MAPE-K agents tie everything together, checking for drift and deciding when to retrain.
+
+The main contributions of this work are a complete agentic fraud detection pipeline that collects data, augments it, trains robustly, and adapts on its own, implementation of MAPE-K architecture for fraud detection that can measure how well the model learns over time, demonstration that combining CTGAN with adversarial training achieves 98.34\% robustness, and strong experimental results showing F1 score of 0.9911 and ROC-AUC of 0.9966.

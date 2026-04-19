@@ -1,0 +1,13 @@
+\section{Conclusion}\label{sec:conclusion}
+
+This paper presented an agentic fraud detection system built on the MAPE-K architecture. The system integrates four key components: data collection and LLM annotation from social media, CTGAN-based data augmentation to handle class imbalance, adversarial training for robustness, and autonomous adaptation using MAPE-K agents.
+
+Our experiments showed strong results. The system achieves F1 score of 0.9911 and ROC-AUC of 0.9966 on real fraud data. The robustness against adversarial attacks is 98.34 percent, demonstrating that the model can handle attempts to evade detection. The MAPE-K architecture successfully detects concept drift and triggers automatic retraining, achieving F1 of 0.92 even under changing fraud patterns.
+
+The key contributions of this work are a complete agentic fraud detection pipeline that handles data collection, augmentation, adversarial training, and autonomous adaptation, a practical implementation of MAPE-K for fraud detection that demonstrates measurable learning adaptation, evidence that combining CTGAN with adversarial training produces highly robust models, and strong experimental results validated on real-world data.
+
+For practitioners, this system offers a deployable solution that reduces manual oversight through automatic adaptation. For researchers, the integration of multiple techniques into a coherent framework provides a foundation for further work.
+
+Future directions include exploring more advanced model architectures, testing on additional datasets from different sources, and implementing more sophisticated adversarial training methods. The MAPE-K framework could also be extended with better planning algorithms to optimize retraining decisions.
+
+In conclusion, our agentic fraud detection system demonstrates how intelligent agents can work together to handle the complex challenges of modern fraud detection. By combining established techniques with autonomous adaptation, we create a robust and practical solution for real-world fraud detection needs.

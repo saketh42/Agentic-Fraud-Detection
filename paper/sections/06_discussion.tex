@@ -1,0 +1,21 @@
+\section{Discussion}\label{sec:discussion}
+
+This section discusses what our results mean and how they compare to existing work.
+
+Our results show that combining CTGAN with adversarial training produces strong fraud detection performance. The CTGAN helps the model learn better by providing more balanced training data. Adversarial training then makes the model robust against attacks. Together, they achieve 98.34 percent robustness, meaning the model keeps working well even when someone tries to trick it.
+
+The MAPE-K architecture adds real value by enabling automatic adaptation. Traditional fraud detection systems need humans to notice when something is wrong and manually retrain the model. Our system handles this automatically. When drift is detected, the system retrains itself and checks if performance improves. This reduces the need for human oversight and ensures the system stays effective as fraud patterns change.
+
+One interesting finding is that the optimal amount of synthetic data is around 700 samples. Adding more did not help and sometimes hurt performance. This suggests that while synthetic data is useful, too much can introduce noise. Finding the right balance is important.
+
+Our system performed well even under concept drift. When fraud patterns changed, the model could still maintain F1 above 0.90 after automatic retraining. This is better than many static systems that would fail completely under the same conditions.
+
+There are some limitations to consider. First, we collected data from social media which may not represent all types of fraud. Some fraud schemes may not be discussed publicly online. Second, we used XGBoost which is a traditional machine learning model. More complex deep learning approaches might achieve even better results. Third, our adversarial training used simple noise addition. More sophisticated attacks like PGD could test robustness further.
+
+From a practical standpoint, the system is ready for deployment. The F1 score of 0.9911 and robustness of 98.34 percent meet the requirements for real-world fraud detection. The automatic adaptation means the system can handle changing fraud patterns without constant human attention.
+
+Compared to related work, our system integrates multiple components that others typically handle separately. Most papers address class imbalance or adversarial training in isolation. Our complete pipeline from data collection to autonomous adaptation is more comprehensive.
+
+Future work could explore different model architectures, test on more diverse datasets, and implement more advan    ced adversarial training methods. The MAPE-K framework could also be extended with more sophisticated planning algorithms.
+
+Overall, our agentic fraud detection system demonstrates how combining established techniques like CTGAN and adversarial training with the MAPE-K architecture creates a robust and adaptive solution for real-world fraud detection challenges.

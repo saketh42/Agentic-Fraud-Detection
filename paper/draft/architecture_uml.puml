@@ -1,0 +1,126 @@
+@startuml MAPE-K_Architecture
+
+!theme plain
+skinparam componentStyle uml2
+
+skinparam rectangle<<Knowledge>> {
+    backgroundColor #f8f8f8
+    borderColor #333
+}
+
+package "Layer 1: Input/Output" {
+    
+    rectangle "Data Input" <<input>> as input [
+        Social Media
+        ---
+        LLM Annotation
+        ---
+        Raw Data
+    ]
+    
+    rectangle "Output/Decision" <<output>> as output [
+        PASS/FAIL
+        ---
+        F1 Score
+        ---
+        ROC-AUC
+        ---
+        Robustness
+    ]
+}
+
+package "Layer 2: Agent Control Loop" {
+    
+    interface "Route 1" as R1
+    interface "Route 2" as R2
+    interface "Route 3" as R3
+    interface "Route 4" as R4
+    interface "Route 5" as R5
+    interface "Route 6" as R6
+    interface "Route 7" as R7
+    interface "Route 8" as R8
+    interface "Route 9" as R9
+    interface "Route 10" as R10
+    interface "Route 11" as R11
+    
+    component "Drift Agent\n(Monitor)" <<L2>> as drift [
+        PSI Check
+        KS Check
+        Alert
+    ]
+    
+    component "Balance Agent\n(execute)" <<L2>> as balance [
+        CTGAN Gen
+        Balance
+        Validate
+    ]
+    
+    component "Training Agent\n(plan)" <<L2>> as training [
+        Model Train
+        Adversarial
+        Update
+    ]
+    
+    component "Evaluation Agent\n(analyze)" <<L2>> as eval [
+        F1 Check
+        ROC-AUC Calc
+        Robustness
+        Pass/Fail
+    ]
+    
+    rectangle "Loop Control" <<L2>> as loopctl [
+        Route 4: Evaluation
+        Route 6: Go/No-Go
+    ]
+}
+
+package "Layer 3: Knowledge Base" {
+    
+    rectangle "Knowledge Base" <<L3>> as kb [
+        Run History
+        Drift Record
+        Model Versions
+        Metrics History
+    ]
+}
+
+' Connections
+input -down-> R1 : "Route 1: Raw Input"
+R1 -down-> drift : "Route 2: Ingestion"
+
+drift -down-> R2 : "Route 9: Drift Not OK"
+drift -right-> R9 : "Route 10: Alert"
+R9 -right-> eval
+
+balance -down-> R3 : "Route 3: Balance Done"
+R3 -down-> eval
+
+training -down-> R4 : "Route 5: Training Done"
+R4 -down-> eval
+
+eval -left-> R5 : "Route 4: Evaluation"
+R5 -left-> loopctl
+
+loopctl -up-> R6 : "Route 6: Go Decision"
+R6 -up-> training : "retrain/fine-tune"
+loopctl -right-> R7 : "Route 7: Re-balance"
+R7 -right-> balance
+
+eval -up-> R8 : "Route 11: Model Approved"
+R8 -up-> output
+
+' Knowledge Base connections
+eval -left-> R10 : "Route 14: Metrics Logging"
+R10 -left-> kb
+
+drift -up-> R11 : "Route 12: Historical Context"
+R11 -up-> kb
+
+' Feedback loops
+note top of drift : L1: Monitor Loop\n(PSI > 0.20 triggers alert)
+note top of balance : L2: Balance Loop\n(if re-balance needed)
+note top of training : L3: Training Loop\n(self-improvement)
+note top of eval : L4: Evaluation Loop\n(quality check)
+note bottom of kb : L5: Knowledge Update\n(persist results)
+
+@enduml

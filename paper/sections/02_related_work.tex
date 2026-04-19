@@ -1,0 +1,13 @@
+\section{Related Work}\label{sec:related}
+
+Fraud detection has been widely studied in the literature. Traditional approaches use rule-based systems and basic machine learning models like logistic regression and decision trees. More recent work applies deep learning methods to detect fraudulent transactions. However, these approaches typically treat fraud detection as a static classification problem and do not address the challenges of changing fraud patterns.
+
+Class imbalance is a well-known challenge in fraud detection. Dal Pozzolo et al. \cite{dalpozzolo2015credit} studied credit card fraud detection and showed that class imbalance significantly affects model performance. Various techniques have been proposed to handle this, including undersampling, oversampling, and synthetic data generation. CTGAN, introduced by Xu et al. \cite{xu2019ctgan}, generates synthetic tabular data that preserves the statistical properties of the original dataset. Several works have applied CTGAN to fraud detection with promising results \cite{strelcenia2023synthetic}.
+
+Concept drift is another critical issue in fraud detection. As fraudsters change their tactics, the data distribution shifts over time. Goudar et al. \cite{goudar2026adaptive} proposed adaptive bagging strategies to address concept drift in fraud detection systems. Various drift detection methods exist, including population stability index and Kolmogorov-Smirnov tests.
+
+Adversarial robustness has gained attention in recent years. Madry et al. \cite{madry2018adversarial} showed that adversarial training can improve model robustness against evasion attacks. For tabular data, Simonetto et al. \cite{simonetto2024tabularbench} introduced TabularBench to benchmark adversarial robustness. Melo et al. \cite{melo2023adversarial} explored adversarial training specifically for tabular fraud detection data.
+
+The MAPE-K architecture, introduced by IBM \cite{ibm2005autonomic}, provides a framework for building self-managing systems. Recent work has applied MAPE-K to various domains including microservices \cite{bucchiarone2022mape} and cloud systems \cite{oh2023mape}. However, limited work has explored MAPE-K for fraud detection specifically.
+
+Our work differs from existing approaches by building a complete agentic system that integrates data collection, augmentation, adversarial training, and autonomous adaptation using the MAPE-K architecture.
