@@ -36,16 +36,28 @@ We test the model's robustness by measuring performance degradation under differ
 
 The core of our system is the MAPE-K architecture, which enables autonomous adaptation. MAPE-K stands for Monitor, Analyze, Plan, Execute, and Knowledge. This architecture was originally proposed by IBM for autonomic computing systems \cite{ibm2005autonomic}.
 
-The Monitor component continuously watches the system's performance and incoming data. It tracks metrics like model accuracy and detects changes in the data distribution. When significant changes occur, it raises alerts.
+Our implementation follows the standard MAPE-K loop order: Monitor $\rightarrow$ Analyze $\rightarrow$ Decision $\rightarrow$ Plan $\rightarrow$ Execute. The system iterates up to 3 times, with a Supervisor component overseeing the process.
 
-The Analyze component processes the Monitor's findings. It determines whether detected changes represent actual concept drift that requires intervention. It also evaluates the severity of any drift detected.
+The Monitor (M) component continuously watches the system's performance and incoming data. It tracks metrics like model accuracy and detects changes in the data distribution using PSI and KS tests. When significant changes occur, it raises alerts.
 
-The Plan component decides what actions to take based on the analysis. If drift is detected, it decides whether retraining is needed and what parameters to use. It considers factors like how severe the drift is and how much performance has degraded.
+The Analyze (A) component processes the Monitor's findings. It evaluates whether detected changes represent actual concept drift that requires intervention, and assesses the current model performance against established baselines.
 
-The Execute component carries out the planned actions. This includes triggering retraining with the balanced dataset, updating the model, and deploying new versions.
+The Decision Node determines the execution path based on analysis. If the model passes quality thresholds and no drift is detected, the system deploys the existing model. Otherwise, it triggers the correction loops.
 
-The Knowledge base stores historical information about the system. This includes past drift events, model versions, performance metrics, and training history. The Knowledge base helps the system learn from past experiences and make better decisions over time.
+The Plan (P) component decides what actions to take based on the decision. If retraining is needed, it determines the appropriate training strategy, including hyperparameters and adversarial training parameters.
 
-Our implementation includes four specialized agents. The Drift Agent monitors for concept drift using population stability index and Kolmogorov-Smirnov tests \cite{goudar2026adaptive}. The Balance Agent handles class rebalancing using CTGAN when needed. The Training Agent manages model training, including adversarial training. The Evaluation Agent assesses model performance and decides whether the system meets quality standards.
+The Execute (E) component carries out the planned actions. This includes triggering retraining with balanced data and deploying new model versions.
 
-When drift is detected, the system automatically triggers a retraining cycle. The Balance Agent first ensures the dataset is properly balanced. The Training Agent then retrains the model with adversarial examples. Finally, the Evaluation Agent checks if performance meets the required thresholds. If so, the new model is deployed. If not, the cycle repeats with adjusted parameters.
+The Knowledge base stores historical information and influences multiple stages. It stores past drift events, model versions, performance metrics, training history, and deployed model information. The KB actively provides prior drift history to Monitor, baseline metrics to Analyze, training configuration to Plan, and evaluation results to Decision.
+
+Our implementation includes five specialized agents. The Ingestion Agent loads and preprocesses raw data from external sources. The Drift Agent (Monitor) detects concept drift using PSI and KS tests, retrieves prior drift history from KB. The Evaluation Agent (Analyze) assesses model metrics, retrieves baseline from KB. The Training Agent (Plan) trains model with strategy, retrieves config from KB. The Balance Agent (Execute) handles CTGAN balancing and deploys model.
+
+\sububsection{Feedback Loops}
+
+Our system implements five distinct feedback loops. L1 (Data-Level Correction) goes from Decision to Execute to re-balance data if poor. L2 (Model-Level Correction) goes from Decision to Plan to change training strategy. L3 (Re-evaluation) goes from Plan back to Monitor to re-check drift after retraining. L4 (Supervisor) enforces iteration cap (max 3), convergence check, and unstable strategy override. L5 (Knowledge Update) goes from Decision to KB to store results for future retrieval.
+
+\sububsection{Supervisor}
+
+The Supervisor component provides oversight with three rules: Max Iterations (stop after 3 retry attempts), Convergence (stop early if $\Delta$F1 $<$ 0.01), and Unstable Override (stop if F1 $<$ 0.5 after 2 iterations).
+
+When drift is detected or metrics are poor, the system automatically triggers a correction cycle. The decision node determines whether to use existing model (pass) or trigger retraining (fail), which then proceeds through Plan and Execute before final deployment.

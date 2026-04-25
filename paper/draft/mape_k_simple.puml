@@ -1,0 +1,54 @@
+@startuml MAPE_K_Fraud_Detection
+skinparam componentStyle uml2
+
+' LAYER 1: INPUT/OUTPUT
+cloud "LAYER 1: INPUT/OUTPUT" {
+    [Data Input\nSocial Media, LLM] as INPUT
+    [Output/PASS/FAIL\nF1, ROC-AUC] as OUTPUT
+}
+
+' LAYER 2: AGENT CONTROL LOOP
+package "LAYER 2: AGENT CONTROL LOOP" {
+    
+    [Drift Agent\nMonitor] as DRIFT
+    note right: Monitors PSI, KS
+    
+    [Balance Agent\nExecute] as BALANCE
+    note right: CTGAN Balancing
+    
+    [Training Agent\nPlan] as TRAINING
+    note right: Model Training
+    
+    [Evaluation Agent\nAnalyze] as EVAL
+    note right: F1, ROC-AUC Check
+    
+    [Loop Control] as LOOP
+}
+
+' LAYER 3: KNOWLEDGE BASE
+database "LAYER 3: KNOWLEDGE BASE" {
+    [Run History] as RUNHIST
+    [Drift Record] as DRIFTREC
+    [Model Versions] as MODELVER
+    [Metrics History] as METRICS
+}
+
+' ROUTES
+INPUT -> DRIFT : R1: Raw Input
+DRIFT -> DRIFT : R2: Check
+DRIFT -> BALANCE : R3: Drift OK
+DRIFT -> EVAL : R4: Alert
+BALANCE -> EVAL : R5: Balanced
+TRAINING -> EVAL : R6: Trained
+EVAL -> LOOP : R7: Results
+LOOP -> TRAINING : R8: Go/Retrain
+LOOP -> BALANCE : R9: No-Go
+EVAL -> OUTPUT : R10: Deploy
+
+' Knowledge Base
+EVAL -> METRICS : R11: Log
+DRIFT -> DRIFTREC : R12: Context
+TRAINING -> MODELVER : R13: Save
+EVAL -> RUNHIST : R14: Log
+
+@enduml

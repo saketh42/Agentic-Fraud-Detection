@@ -111,7 +111,7 @@ class MAPEKPipeline:
             'output_dir': output_dir
         }
         
-        # === STEP 1: INGESTION (Load & Preprocess) ===
+        # === STEP 1: INGESTION (Load Data) ===
         print('\n[STEP 1/5] Data Ingestion')
         result = self.agents['ingestion'].run(self.state)
         self.state.update(result.data)
@@ -120,42 +120,106 @@ class MAPEKPipeline:
         if not result.success:
             return self._finalize(success=False, error=result.message)
         
-        # === STEP 2: DRIFT DETECTION (Monitor) ===
-        print('\n[STEP 2/5] Drift Detection (M in MAPE)')
-        result = self.agents['drift'].run(self.state)
-        self.state.update(result.data)
-        self._record_step('drift', result)
+        # === MAPE-K LOOP (Iterate until model passes or max retries) ===
+        max_iterations = 3
+        iteration = 0
+        self.state['supervisor_iterations'] = 0
+        self.state['supervisor_max'] = 3
+        self.state['supervisor_converged'] = False
+        self.state['supervisor_unstable'] = False
+        prior_f1 = 0.0
         
-        if not result.success:
-            return self._finalize(success=False, error=result.message)
-        
-        # === STEP 3: BALANCE (Execute) ===
-        print('\n[STEP 3/5] Class Balancing (E in MAPE)')
-        self.state['data'] = self.state.get('remediated_data', self.state['data'])
-        result = self.agents['balance'].run(self.state)
-        self.state['balanced_data'] = result.data.get('balanced_data')
-        self.state['balance_report'] = result.data.get('balance_report')
-        self._record_step('balance', result)
-        
-        if not result.success:
-            return self._finalize(success=False, error=result.message)
-        
-        # === STEP 4: TRAINING (Plan) ===
-        print('\n[STEP 4/5] Model Training (P in MAPE)')
-        result = self.agents['training'].run(self.state)
-        self.state['model'] = result.data.get('model')
-        self.state['training_report'] = result.data.get('training_report')
-        self._record_step('training', result)
-        
-        if not result.success:
-            return self._finalize(success=False, error=result.message)
-        
-        # === STEP 5: EVALUATION (Analyze) ===
-        print('\n[STEP 5/5] Model Evaluation (A in MAPE)')
-        result = self.agents['evaluation'].run(self.state)
-        self.state['evaluation_metrics'] = result.data.get('evaluation_metrics')
-        self.state['passed'] = result.data.get('passed')
-        self._record_step('evaluation', result)
+        while iteration < max_iterations:
+            iteration += 1
+            self.state['supervisor_iterations'] = iteration
+            print(f'\n--- MAPE-K ITERATION {iteration}/{max_iterations} ---')
+            
+            # === M: MONITOR (Drift Agent) ===
+            print('\n[M] MONITOR: Detect Drift')
+            self.state['kb_drift_history'] = self._get_kb('drift')
+            self.state['kb_config'] = self._get_kb('config')
+            result = self.agents['drift'].run(self.state)
+            self.state.update(result.data)
+            self._record_step(f'monitor_{iteration}', result)
+            self._update_kb('drift', {'psi': self.state.get('psi'), 'ks': self.state.get('ks'), 'iteration': iteration})
+            
+            # === A: ANALYZE (Evaluation Agent) ===
+            print('\n[A] ANALYZE: Assess Current Model')
+            self.state['kb_baseline'] = self._get_kb('metrics')
+            result = self.agents['evaluation'].run(self.state)
+            self.state['analysis'] = result.data.get('evaluation_metrics')
+            self.state['analyze_passed'] = result.data.get('passed')
+            self._record_step(f'analyze_{iteration}', result)
+            self._update_kb('metrics', self.state.get('evaluation_metrics', {}))
+            
+            current_f1 = self.state.get('evaluation_metrics', {}).get('f1', 0.0)
+            
+            # === DECISION NODE ===
+            if self.state.get('analyze_passed', False) and not self.state.get('drift_detected', False):
+                print('\n✓ DECISION: Model OK')
+                print('\n[E] EXECUTE: Deploy Model')
+                self.state['model'] = None
+                self.state['deploy'] = True
+                self._update_kb('deployed_model', {'iteration': iteration, 'model': 'existing'})
+                break
+            else:
+                if not self.state.get('analyze_passed', False):
+                    print('\n↻ DECISION: Metrics poor → L2 (model-level)')
+                if self.state.get('drift_detected', False):
+                    print('\n↻ DECISION: Drift detected → L2 (model-level)')
+                
+                # === P: PLAN (Training Agent) - L2: Model-level correction ===
+                print('\n[P] PLAN: Train Model Strategy')
+                self.state['kb_training_config'] = self._get_kb('training')
+                result = self.agents['training'].run(self.state)
+                self.state['model'] = result.data.get('model')
+                self.state['training_report'] = result.data.get('training_report')
+                self._record_step(f'plan_{iteration}', result)
+                self._update_kb('training', self.state.get('training_report', {}))
+                self._update_kb('config', {'iteration': iteration})
+                
+                if not result.success:
+                    return self._finalize(success=False, error=result.message)
+                
+                # === E: EXECUTE (Balance + Deploy) - L1: Data-level correction ===
+                print('\n[E] EXECUTE: Balance Data')
+                self.state['data'] = self.state.get('remediated_data', self.state['data'])
+                result = self.agents['balance'].run(self.state)
+                self.state['balanced_data'] = result.data.get('balanced_data')
+                self.state['balance_report'] = result.data.get('balance_report')
+                self._record_step(f'execute_{iteration}', result)
+                
+                print('\n[E] EXECUTE: Deploy Model')
+                if self.state.get('passed', False):
+                    self.state['deploy'] = True
+                    self._update_kb('deployed_model', {'iteration': iteration, 'model': str(self.state.get('model'))})
+                    print(f'\n✓ DEPLOY: Model ready')
+                else:
+                    self.state['deploy'] = False
+            
+            # === SUPERVISOR: Enhanced ===
+            if self.state.get('deploy', False):
+                print(f'\n✓ PASSED at iteration {iteration}')
+                break
+            
+            # Check convergence
+            if prior_f1 > 0 and (current_f1 - prior_f1) < 0.01:
+                self.state['supervisor_converged'] = True
+                print('\n[!] SUPERVISOR: Converged, stopping early')
+                break
+            prior_f1 = current_f1
+            
+            # Check unstable
+            if iteration >= 2 and current_f1 < 0.5:
+                self.state['supervisor_unstable'] = True
+                print('\n[!] SUPERVISOR: Unstable, stopping')
+                break
+            
+            if iteration >= max_iterations:
+                print('\n[!] SUPERVISOR: Max iterations reached')
+                break
+            
+            print(f'\n↻ RETRY: L1/L2 correction (iteration {iteration}/{max_iterations})')
         
         # === FINALIZE ===
         print('\n' + '=' * 60)
@@ -171,13 +235,28 @@ class MAPEKPipeline:
         )
     
     def _record_step(self, name: str, result):
-        '''Record step result in history'''
+        '''Record step result in history and KB'''
         self.history.append({
             'step': name,
             'success': result.success,
             'message': result.message,
             'metrics': result.metrics
         })
+        self._update_kb(name, result.data)
+    
+    def _update_kb(self, record_type: str, data: dict):
+        '''Update knowledge base'''
+        if not hasattr(self, 'knowledge_base'):
+            self.knowledge_base = {}
+        if record_type not in self.knowledge_base:
+            self.knowledge_base[record_type] = []
+        self.knowledge_base[record_type].append(data)
+    
+    def _get_kb(self, record_type: str):
+        '''Get from knowledge base'''
+        if not hasattr(self, 'knowledge_base'):
+            return None
+        return self.knowledge_base.get(record_type, [])
     
     def _finalize(self, success: bool, error: str = None) -> dict:
         '''Save results and return final state'''
@@ -197,7 +276,9 @@ class MAPEKPipeline:
             'training_report': self.state.get('training_report'),
             'evaluation_metrics': self.state.get('evaluation_metrics'),
             'passed': self.state.get('passed', False),
-            'history': self.history
+            'history': self.history,
+            'knowledge_base': self.knowledge_base if hasattr(self, 'knowledge_base') else {},
+            'supervisor_iterations': self.state.get('supervisor_iterations', 0)
         }
         
         with open(os.path.join(output_path, 'run_summary.json'), 'w') as f:
