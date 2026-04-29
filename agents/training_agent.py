@@ -85,13 +85,6 @@ class TrainingAgent(BaseAgent):
         # Train model with fixed learning rate
         self.model = self._create_model()
         
-        # Handle class imbalance
-        if self.model_type == "gradient_boosting":
-            n_pos = (y_train == 1).sum()
-            n_neg = (y_train == 0).sum()
-            scale = n_neg / max(1, n_pos)
-            self.model.set_params(scale_pos_weight=scale)
-        
         self.model.fit(X_train, y_train)
         
         # Evaluate

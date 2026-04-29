@@ -14,6 +14,7 @@ from agents.balance_agent import BalanceAgent
 from agents.training_agent import TrainingAgent
 from agents.evaluation_agent import EvaluationAgent
 from agents.ingestion_agent import IngestionAgent
+from agents.decision_agent import DecisionAgent
 
 
 class MAPEKPipeline:
@@ -74,6 +75,10 @@ class MAPEKPipeline:
             ),
             'evaluation': EvaluationAgent(
                 robustness_thresholds=self.config['evaluation']
+            ),
+            'decision': DecisionAgent(
+                model='llama3',
+                mock_mode=True
             )
         }
     
@@ -120,6 +125,19 @@ class MAPEKPipeline:
         if not result.success:
             return self._finalize(success=False, error=result.message)
         
+        # === INITIAL TRAINING (First time only) ===
+        print('\n[STEP 2] Initial Training')
+        result = self.agents['training'].run(self.state)
+        self.state['model'] = result.data.get('model')
+        self.state['test_features'] = result.data.get('test_features')
+        self.state['test_labels'] = result.data.get('test_labels')
+        
+        # === INITIAL BALANCE ===
+        print('\n[STEP 3] Initial Balancing')
+        self.state['data'] = self.state.get('data')
+        result = self.agents['balance'].run(self.state)
+        self.state['balanced_data'] = result.data.get('balanced_data')
+        
         # === MAPE-K LOOP (Iterate until model passes or max retries) ===
         max_iterations = 3
         iteration = 0
@@ -154,19 +172,33 @@ class MAPEKPipeline:
             
             current_f1 = self.state.get('evaluation_metrics', {}).get('f1', 0.0)
             
-            # === DECISION NODE ===
-            if self.state.get('analyze_passed', False) and not self.state.get('drift_detected', False):
-                print('\n✓ DECISION: Model OK')
-                print('\n[E] EXECUTE: Deploy Model')
+            # === DECISION NODE (LLM-based) ===
+            self.state['kb_recent'] = self._get_kb('metrics')[-3:] if hasattr(self, 'knowledge_base') else []
+            self.state['prior_f1'] = prior_f1
+            result = self.agents['decision'].run(self.state)
+            decision = result.data.get('decision', {})
+            action = decision.get('action', 'retrain_L2')
+            
+            print(f'\n[DECISION] LLM: {action} - {decision.get("reason", "")}')
+            
+            if action == 'deploy':
+                print('\n✓ DECISION: Deploy Model')
                 self.state['model'] = None
                 self.state['deploy'] = True
                 self._update_kb('deployed_model', {'iteration': iteration, 'model': 'existing'})
                 break
+            elif action == 'stop':
+                print('\n[!] DECISION: Stop iterations')
+                self.state['supervisor_stopped'] = True
+                break
             else:
-                if not self.state.get('analyze_passed', False):
-                    print('\n↻ DECISION: Metrics poor → L2 (model-level)')
-                if self.state.get('drift_detected', False):
-                    print('\n↻ DECISION: Drift detected → L2 (model-level)')
+                if action == 'retrain_new_strategy':
+                    print('\n↻ DECISION: Drift/New Strategy → Retrain with adjusted params')
+                    params = decision.get('params', {})
+                    if params:
+                        self.state['training_override'] = params
+                else:
+                    print('\n↻ DECISION: Retrain')
                 
                 # === P: PLAN (Training Agent) - L2: Model-level correction ===
                 print('\n[P] PLAN: Train Model Strategy')
@@ -223,14 +255,15 @@ class MAPEKPipeline:
         
         # === FINALIZE ===
         print('\n' + '=' * 60)
-        if self.state['passed']:
+        passed = self.state.get('passed', False)
+        if passed:
             print(' PIPELINE PASSED - Model ready for deployment')
         else:
             print(' PIPELINE FAILED - Model not acceptable')
         print('=' * 60)
         
         return self._finalize(
-            success=self.state['passed'],
+            success=passed,
             error=None
         )
     
@@ -262,11 +295,10 @@ class MAPEKPipeline:
         '''Save results and return final state'''
         output_path = os.path.join(
             self.state.get('output_dir', 'output'),
-            f'run_{self.state.get(\"run_id\", \"unknown\")}'
+            'run_' + str(self.state.get('run_id', 'unknown'))
         )
         os.makedirs(output_path, exist_ok=True)
         
-        # Save run summary
         summary = {
             'run_id': self.state.get('run_id'),
             'success': success,
@@ -284,7 +316,7 @@ class MAPEKPipeline:
         with open(os.path.join(output_path, 'run_summary.json'), 'w') as f:
             json.dump(summary, f, indent=2, default=str)
         
-        print(f'\nResults saved to: {output_path}')
+        print('\nResults saved to:', output_path)
         
         return {
             'success': success,
