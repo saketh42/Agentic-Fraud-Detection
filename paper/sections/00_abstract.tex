@@ -1,5 +1,11 @@
 \section{Abstract}
 
-Fraud detection systems face significant challenges including class imbalance, concept drift, and adversarial evasion attacks. This paper presents an agentic fraud detection system built on the MAPE-K (Monitor-Analyze-Plan-Execute using Knowledge) architecture that autonomously adapts to evolving fraud patterns. The system integrates: social media-based data collection and LLM-driven annotation, CTGAN-based data augmentation, adversarial training for robustness, and a closed-loop MAPE-K framework with five specialized agents (Ingestion, Drift, Evaluation, Training, Balance) following the M $\rightarrow$ A $\rightarrow$ Decision $\rightarrow$ P $\rightarrow$ E order with active Knowledge Base. Our system achieves F1 of 0.9911, ROC-AUC of 0.9966, and 98.34\% robustness. The MAPE-K loop detects drift via PSI/KS, triggers retraining with L1/L2 feedback loops, and includes a Supervisor with convergence monitoring.
+Fraud detection systems face challenges including class imbalance, concept drift, and adversarial evasion. This paper presents an agentic fraud detection system built on the MAPE-K (Monitor-Analyze-Plan-Execute using Knowledge) architecture with LLM-driven contextual decision-making.
 
-\keywords{Fraud Detection \and MAPE-K Architecture \and Adversarial Training \and Concept Drift \and CTGAN \and Autonomous Systems}
+The system integrates: CTGAN-based data augmentation for class imbalance, adversarial training for robustness, feature extraction with rule-based scoring, pattern learning for fraud classification (phishing, social engineering), and a LLM decision agent (Ollama Llama 3) for autonomous decision-making. The system uses a SQLite knowledge store for persistent memory with feedback-driven continuous learning.
+
+Our experiments show: F1 of 0.9877, ROC-AUC of 0.9869, 98.34% robustness. Drift detection works with PSI=8.09 and KS=0.50. After adaptation (retraining on drifted data), the system recovers to F1=0.9929.
+
+The MAPE-K loop detects drift via PSI/KS tests, triggers retraining with L1/L2 feedback loops, and uses a LLM (Llama 3) to make contextual decisions about deployment vs. retraining. This provides truly autonomous fraud detection that adapts to evolving fraud patterns.
+
+\keywords{Fraud Detection, MAPE-K Architecture, Adversarial Training, Concept Drift, CTGAN, Autonomous Agents, LLM, Ollama}

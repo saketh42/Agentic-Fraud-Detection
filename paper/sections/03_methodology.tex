@@ -1,6 +1,6 @@
 \section{Methodology}\label{sec:methodology}
 
-This section describes the four main components of our agentic fraud detection system.
+This section describes the components of our agentic fraud detection system.
 
 \subsection{Data Collection and Annotation}
 
@@ -34,30 +34,90 @@ We test the model's robustness by measuring performance degradation under differ
 
 \subsection{MAPE-K Agent Architecture}
 
-The core of our system is the MAPE-K architecture, which enables autonomous adaptation. MAPE-K stands for Monitor, Analyze, Plan, Execute, and Knowledge. This architecture was originally proposed by IBM for autonomic computing systems \cite{ibm2005autonomic}.
+The core of our system is the MAPE-K architecture, which enables autonomous adaptation. MAPE-K stands for Monitor, Analyze, Plan, Execute, and Knowledge. This architecture was originally proposed by IBM for autonomic computing systems \cite{ibm2005autonomic, kephart2003vision}.
 
-Our implementation follows the standard MAPE-K loop order: Monitor $\rightarrow$ Analyze $\rightarrow$ Decision $\rightarrow$ Plan $\rightarrow$ Execute. The system iterates up to 3 times, with a Supervisor component overseeing the process.
+Our implementation follows: Monitor $\rightarrow$ Analyze $\rightarrow$ Decision $\rightarrow$ Plan $\rightarrow$ Execute with active Knowledge base. The system includes:
 
-The Monitor (M) component continuously watches the system's performance and incoming data. It tracks metrics like model accuracy and detects changes in the data distribution using PSI and KS tests. When significant changes occur, it raises alerts.
+\begin{enumerate}
+  \item \textbf{Monitor}: DriftAgent + FeatureExtractionAgent - Detects concept drift using PSI/KS tests and extracts fraud features
+  \item \textbf{Analyze}: RuleBasedScoringAgent + PatternLearningAgent - Rule-based scoring and pattern classification
+  \item \textbf{Decision}: LLM Decision Agent (Llama 3) - Contextual decision-making with reasoning
+  \item \textbf{Plan}: TrainingAgent - Model training with adversarial training
+  \item \textbf{Execute}: BalanceAgent - CTGAN balancing and deployment
+  \item \textbf{Knowledge}: SQLite Knowledge Store - Persistent memory with 8 tables
+\end{enumerate}
 
-The Analyze (A) component processes the Monitor's findings. It evaluates whether detected changes represent actual concept drift that requires intervention, and assesses the current model performance against established baselines.
+\sububsection{Feature Extraction Agent}
 
-The Decision Node determines the execution path based on analysis. If the model passes quality thresholds and no drift is detected, the system deploys the existing model. Otherwise, it triggers the correction loops.
+The Feature Extraction Agent parses fraud labels, key features, and psychological tactics from transaction data. It produces a semantic profile combining labels and behavioral features into a compact fraud signature. Active fraud labels include credential\_phishing, social\_authority\_scam, social\_urgency\_scam, and others. Psychological tactics include urgency, fear, authority, and reward.
 
-The Plan (P) component decides what actions to take based on the decision. If retraining is needed, it determines the appropriate training strategy, including hyperparameters and adversarial training parameters.
+\sububsection{Rule-Based Scoring Agent}
 
-The Execute (E) component carries out the planned actions. This includes triggering retraining with balanced data and deploying new model versions.
+The Rule-Based Scoring Agent applies transparent weighted rules:
+\begin{itemize}
+  \item credential\_phishing: +0.25
+  \item social\_authority\_scam: +0.25  
+  \item urgency: +0.15
+  \item fear: +0.15
+\end{itemize}
+The final score is clamped between 0 and 1, providing explainable fraud estimation.
 
-The Knowledge base stores historical information and influences multiple stages. It stores past drift events, model versions, performance metrics, training history, and deployed model information. The KB actively provides prior drift history to Monitor, baseline metrics to Analyze, training configuration to Plan, and evaluation results to Decision.
+\sububsection{Pattern Learning Agent}
 
-Our implementation includes five specialized agents. The Ingestion Agent loads and preprocesses raw data from external sources. The Drift Agent (Monitor) detects concept drift using PSI and KS tests, retrieves prior drift history from KB. The Evaluation Agent (Analyze) assesses model metrics, retrieves baseline from KB. The Training Agent (Plan) trains model with strategy, retrieves config from KB. The Balance Agent (Execute) handles CTGAN balancing and deploys model.
+The Pattern Learning Agent maps fraud indicators to known or emerging patterns:
+\begin{itemize}
+  \item PHISHING: credential\_phishing detected
+  \item SOCIAL\_ENGINEERING: authority + fear detected
+  \item HYBRID: multiple labels combined
+\end{itemize}
+If a pattern appears fewer than 3 times historically, it's marked as emerging.
+
+\sububsection{LLM Decision Agent}
+
+The Decision Agent uses Ollama Llama 3 for contextual reasoning. Given system state (drift, metrics, prior F1), the LLM decides: deploy, retrain\_L2, retrain\_new\_strategy, or stop. This replaces hardcoded threshold rules with adaptive reasoning.
+
+\sububsection{Knowledge Store}
+
+The Knowledge Store is SQLite-based with 8 tables:
+\begin{itemize}
+  \item transactions: Raw transaction data
+  \item predictions: Model predictions
+  \item reasoning: LLM reasoning traces
+  \item patterns: Learned fraud patterns
+  \item adversarial\_variants: Adversarial test results
+  \item execution\_logs: Action history
+  \item feedback: Human feedback for continuous learning
+  \item metrics: Performance metrics
+\end{itemize}
+
+\subsubsection{Feedback and Learning}
+
+The Feedback Agent processes human corrections to improve future decisions. When incorrect predictions are flagged, it triggers retraining review. The system tracks learning improvement rate to measure if feedback enhances decision quality.
+
+\sububsection{Agentic Performance Metrics}
+
+We measure:
+\begin{itemize}
+  \item F1-score and ROC-AUC (core classification)
+  \item PR-AUC (for imbalanced data)
+  \item Adversarial accuracy (robustness under attack)
+  \item Planning accuracy (correct action selection)
+  \item Drift detection rate (PSI, KS thresholds)
+\end{itemize}
 
 \sububsection{Feedback Loops}
 
-Our system implements five distinct feedback loops. L1 (Data-Level Correction) goes from Decision to Execute to re-balance data if poor. L2 (Model-Level Correction) goes from Decision to Plan to change training strategy. L3 (Re-evaluation) goes from Plan back to Monitor to re-check drift after retraining. L4 (Supervisor) enforces iteration cap (max 3), convergence check, and unstable strategy override. L5 (Knowledge Update) goes from Decision to KB to store results for future retrieval.
+Our system implements five feedback loops:
+\begin{itemize}
+  \item L1: Decision $\rightarrow$ Balance (re-balance data)
+  \item L2: Decision $\rightarrow$ Training (change strategy)
+  \item L3: Training $\rightarrow$ Monitor (re-check drift)
+  \item L4: Supervisor (iteration cap, convergence)
+  \item L5: Decision $\rightarrow$ Knowledge (store results)
+\end{itemize}
 
 \sububsection{Supervisor}
 
-The Supervisor component provides oversight with three rules: Max Iterations (stop after 3 retry attempts), Convergence (stop early if $\Delta$F1 $<$ 0.01), and Unstable Override (stop if F1 $<$ 0.5 after 2 iterations).
+The Supervisor component provides oversight with three rules: Max Iterations (stop after 3 retry attempts), Convergence (stop early if $\Delta$F1 $<$ 0.01), and Unstable Override (stop if F1 $<$ 0.3 after 2 iterations).
 
-When drift is detected or metrics are poor, the system automatically triggers a correction cycle. The decision node determines whether to use existing model (pass) or trigger retraining (fail), which then proceeds through Plan and Execute before final deployment.
+When drift is detected or metrics are poor, the system automatically triggers a correction cycle. The LLM decision node determines whether to deploy existing model or trigger retraining.
