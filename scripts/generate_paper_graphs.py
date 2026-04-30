@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 # Results data
-phases = ['Initial\n(clean)', 'After Drift\n(no retrain)', 'After\nAdaptation']
+phases = ['Initial', 'After Drift', 'After Retrain']
 f1_scores = [0.9877, 0.9726, 0.9929]
 roc_scores = [0.9869, 0.9271, 0.9943]
 
@@ -97,28 +97,4 @@ plt.tight_layout()
 plt.savefig('output/plots/drift_adaptation_results.png', dpi=300, bbox_inches='tight')
 plt.close()
 
-# Additional: Single metrics summary
-fig2, ax = plt.subplots(figsize=(8, 6))
-
-metrics = ['F1-Score', 'ROC-AUC', 'Robustness', 'Drift Detection']
-values = [0.9877, 0.9869, 0.9834, 1.0]  # 1.0 for drift detection = 100% detection rate
-colors = ['steelblue', 'coral', 'green', 'purple']
-
-bars = ax.barh(metrics, values, color=colors)
-ax.set_xlim(0, 1.1)
-
-for bar, val in zip(bars, values):
-    ax.annotate(f'{val:.2f}',
-              xy=(val, bar.get_y() + bar.get_height() / 2),
-              xytext=(5, 0), textcoords="offset points",
-              ha='left', va='center', fontsize=11)
-
-ax.set_xlabel('Value')
-ax.set_title('Summary: Key Performance Metrics')
-plt.tight_layout()
-plt.savefig('output/plots/metrics_summary.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-print("Generated plots:")
-print("- output/plots/drift_adaptation_results.png")
-print("- output/plots/metrics_summary.png")
+print("Generated: output/plots/drift_adaptation_results.png")
