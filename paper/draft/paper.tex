@@ -76,17 +76,22 @@ Our work differs from existing approaches by building an automated system that i
 
 \section{Methodology}
 
-This section describes the methods used to develop an autonomous fraud detection system capable of adapting to evolving data distributions and maintaining performance over time.
+This section describes our agentic fraud detection system built on the MAPE-K architecture with LLM-driven decision-making.
 
-\subsection{Autonomous Adaptation Layer}
+\subsection{MAPE-K Agent Architecture}
 
-Fraud detection systems operate in dynamic environments where data distributions and fraud patterns change over time. Static models are unable to maintain performance under such conditions, as they require manual retraining and cannot respond to changes in real time.
+Our system implements MAPE-K (Monitor-Analyze-Plan-Execute using Knowledge) with specialized agents for autonomous fraud detection:
 
-To address this, the proposed system is built around an autonomous adaptation layer based on the MAPE-K (Monitor–Analyze–Plan–Execute over a shared Knowledge base) framework \cite{ibm2005autonomic}. This layer enables the system to continuously monitor incoming data, evaluate model performance, and trigger corrective actions when required.
+\begin{enumerate}
+  \item \textbf{Monitor (M)}: DriftAgent + FeatureExtractionAgent
+  \item \textbf{Analyze (A)}: RuleBasedScoringAgent + PatternLearningAgent  
+  \item \textbf{Decision}: LLM Decision Agent (Ollama Llama 3)
+  \item \textbf{Plan (P)}: TrainingAgent
+  \item \textbf{Execute (E)}: BalanceAgent
+  \item \textbf{Knowledge}: SQLite Knowledge Store
+\end{enumerate}
 
-The system operates as a closed-loop control process. Incoming data is analyzed for distributional changes using statistical measures such as Population Stability Index (PSI) and Kolmogorov–Smirnov (KS) tests. Model performance is continuously evaluated using classification metrics. When significant drift or performance degradation is detected, the system automatically initiates a retraining process.
-
-This retraining process integrates updated data, data balancing, and adversarial training to ensure the model remains effective under changing conditions. The use of a shared knowledge base allows the system to maintain historical context and support consistent decision-making across adaptation cycles.
+System flow: Monitor $\rightarrow$ Analyze $\rightarrow$ Decision $\rightarrow$ Plan $\rightarrow$ Execute $\rightarrow$ Knowledge
 
 \begin{figure}
 \centering
@@ -95,55 +100,69 @@ This retraining process integrates updated data, data balancing, and adversarial
 \label{fig:architecture}
 \end{figure}
 
-\subsection{Data Collection and Annotation}
-
-Obtaining labeled fraud data is challenging. We collected data from social media and used LLM-based annotation to label fraud types.
-
-\subsection{Data Balancing using CTGAN}
-
-Class imbalance is handled using CTGAN to generate synthetic minority samples.
-
-\subsection{Adversarial Training}
-
-Fraudsters manipulate inputs to evade detection. We use FGSM adversarial training for robustness.
-
-\subsection{MAPE-K Agent Architecture}
-
-Our system uses MAPE-K (Monitor-Analyze-Plan-Execute using Knowledge) with multiple specialized agents:
-
-\begin{enumerate}
-  \item \textbf{Monitor}: DriftAgent + FeatureExtractionAgent - detects drift, extracts fraud features
-  \item \textbf{Analyze}: RuleBasedScoringAgent + PatternLearningAgent - rule scoring, pattern classification
-  \item \textbf{Decision}: LLM Decision Agent (Ollama Llama 3) - contextual decision-making
-  \item \textbf{Plan}: TrainingAgent - model training with adversarial training
-  \item \textbf{Execute}: BalanceAgent - CTGAN balancing and deployment
-  \item \textbf{Knowledge}: SQLite Knowledge Store - persistent memory
-\end{enumerate}
-
 \sububsection{Feature Extraction Agent}
-Parses fraud labels (credential\_phishing, social\_authority\_scam), key features, and psychological tactics (urgency, fear). Produces semantic profile.
+Parses transaction data to extract:
+\begin{itemize}
+  \item Fraud labels: credential\_phishing, social\_authority\_scam, social\_urgency\_scam
+  \item Key features: payment\_method, fraud\_channel, victim\_action
+  \item Psychological tactics: urgency, fear, authority, reward
+  \item Semantic profile: combined fraud signature
+\end{itemize}
 
 \sububsection{Rule-Based Scoring Agent}
-Transparent weighted rules: credential\_phishing (+0.25), social\_authority\_scam (+0.25), urgency (+0.15), fear (+0.15).
+Transparent weighted rules:
+\begin{itemize}
+  \item credential\_phishing: +0.25
+  \item social\_authority\_scam: +0.25
+  \item urgency: +0.15
+  \item fear: +0.15
+\end{itemize}
+Score clamped 0-1.
 
 \sububsection{Pattern Learning Agent}
-Maps to patterns: PHISHING, SOCIAL\_ENGINEERING, HYBRID using rule matching.
+Maps to patterns:
+\begin{itemize}
+  \item PHISHING: credential\_phishing
+  \item SOCIAL\_ENGINEERING: authority + fear
+  \item HYBRID: multiple labels
+  \item Emerging: frequency $<$ 3
+\end{itemize}
 
-\sububsection{LLM Decision Agent}
-Uses Ollama Llama 3 for contextual decisions. Given system state (drift, metrics), the LLM decides: deploy, retrain, or stop.
+\sububsection{LLM Decision Agent (Ollama Llama 3)}
+Replaces hardcoded rules with LLM reasoning. Given state (drift, metrics, KB), outputs:
+\begin{itemize}
+  \item Action: deploy / retrain\_L2 / retrain\_new\_strategy / stop
+  \item Reason: contextual explanation
+  \item Params: training parameters
+\end{itemize}
 
-\sububsection{Knowledge Store}
-SQLite database with 8 tables: transactions, predictions, reasoning, patterns, adversarial\_variants, execution\_logs, feedback, metrics.
+\sububsection{Knowledge Store (SQLite)}
+8 tables: transactions, predictions, reasoning, patterns, adversarial\_variants, execution\_logs, feedback, metrics.
 
-Feedback loops: L1 (Decision→Balance), L2 (Decision→Training), L3 (Training→Monitor), L4 (Supervisor), L5 (Decision→Knowledge).
+\sububsection{Feedback Loops}
+\begin{itemize}
+  \item L1: Decision $\rightarrow$ Balance
+  \item L2: Decision $\rightarrow$ Training  
+  \item L3: Training $\rightarrow$ Monitor
+  \item L4: Supervisor
+  \item L5: Decision $\rightarrow$ Knowledge
+\end{itemize}
 
+\sububsection{Agentic Performance Metrics}
+F1-score, PR-AUC, ROC-AUC, Adversarial Accuracy, FPR@Attack, Pattern Classification, Planning Accuracy, Human Override Rate, Robustness Gain.
+
+\subsection{Data Collection and Annotation}
+Collected from social media, LLM-based annotation for fraud labels.
+
+\subsection{Data Balancing using CTGAN}
+CTGAN generates synthetic minority samples for class balance.
+
+\subsection{Adversarial Training}
+FGSM for robustness:
 \begin{equation}
 x_{\text{adv}} = x + \epsilon \cdot \text{sign}(\nabla_x L(\theta, x, y))
 \end{equation}
-
-where $\epsilon = 0.05$ controls perturbation magnitude.
-
-The model is trained on both clean and adversarial samples, enabling it to learn more stable decision boundaries. This ensures that the autonomous system remains robust even when inputs are intentionally manipulated.Robustness is evaluated across varying perturbation strengths $\epsilon \in \{0.01, 0.05, 0.10, 0.20, 0.30\}$.
+where $\epsilon = 0.05$. Trained on clean + adversarial samples. Evaluated at $\epsilon \in \{0.01, 0.05, 0.10, 0.20, 0.30\}$.
 
 \section{Experimental Setup}\label{sec:experimental}
 
@@ -284,7 +303,7 @@ The Pattern Learning Agent achieved 100\% accuracy in classifying fraud patterns
 Our complete system with all components outperforms baseline approaches:
 
 \begin{table}[h]
-centering
+\centering
 \caption{Ablation Study: Component-wise Performance on Clean Data and Under Drift Conditions}
 \label{tab:ablation}
 \begin{tabular}{|l|c|c|c|c|}
