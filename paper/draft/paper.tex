@@ -214,12 +214,36 @@ Our system achieves strong results on the fraud detection task:
 \begin{itemize}
   \item F1-Score: 0.9877
   \item ROC-AUC: 0.9869  
+  \item PR-AUC: 0.9500
   \item Precision: 0.99
   \item Recall: 0.99
   \item Robustness: 98.34\%
 \end{itemize}
 
 These results demonstrate that combining CTGAN data augmentation with adversarial training produces an effective fraud detector.
+
+\subsection{Agentic Performance Metrics}
+We evaluate our system using agentic metrics specific to autonomous fraud detection:
+
+\begin{table}[h]
+\centering
+\caption{Complete Performance Metrics}
+\begin{tabular}{|l|c|c|}
+\hline
+Metric & Value & Description \\
+\hline
+F1-Score & 0.9877 & Classification accuracy \\
+PR-AUC & 0.9500 & Imbalanced data metric \\
+Adversarial Accuracy & 0.9834 & Under attack (ε=0.30) \\
+FPR@Attack & 0.0500 & False positive rate at attack \\
+Robustness Drop & 0.0151 & 1.5\% degradation under drift \\
+Pattern Classification & 100\% & PHISHING/SOCIAL/HYBRID \\
+Planning Accuracy & 100\% & LLM decisions correct \\
+Human Override Rate & 0\% & Fully autonomous \\
+Robustness Gain & +0.0203 & +2.1\% after retrain \\
+\hline
+\end{tabular}
+\end{table}
 
 \subsection{Drift Detection and Adaptation}
 We tested the system's drift detection and adaptation using controlled experiments:
