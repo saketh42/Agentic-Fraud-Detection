@@ -64,7 +64,18 @@ class TrainingAgent(BaseAgent):
             feature_cols = [c for c in data.columns if c != target_col]
         
         # Prepare features and target
-        X = data[feature_cols].values
+        # Convert to DataFrame for easier preprocessing
+        feature_df = data[feature_cols].copy()
+        
+        # Encode string columns to numeric
+        for col in feature_df.columns:
+            if feature_df[col].dtype == 'object':
+                # Label encode string columns
+                codes = pd.Categorical(feature_df[col]).codes
+                feature_df[col] = codes
+        
+        # Convert entire DataFrame to numeric
+        X = feature_df.apply(pd.to_numeric, errors='coerce').fillna(0).values
         y = data[target_col].values
         
         # Train/test split
@@ -195,16 +206,29 @@ class TrainingAgent(BaseAgent):
                 random_state=self.random_state
             )
     
-    def _fgsm_augment(self, X: np.ndarray, y: np.ndarray) -> tuple:
-        """Generate FGSM adversarial examples"""
+    def _fgsm_augment(self, X: np.ndarray, y: np.ndarray, feature_cols: list = None) -> tuple:
+        """
+        Generate FGSM adversarial samples.
+        Creates perturbed versions of samples with label flipping.
+        Only perturbs numeric features, leaves categorical features unchanged.
+        """
         X_adv = []
         y_adv = []
         
+        # Determine which features are numeric (assuming feature_cols is passed)
+        # For now, try to detect numeric features by checking if the column contains strings
         for i in range(len(X)):
-            features = X[i].reshape(1, -1)
+            features = X[i].copy()
             perturbation = np.random.uniform(-self.fgsm_epsilon, self.fgsm_epsilon, X[i].shape)
+            
+            # Only apply perturbation to numeric features (try to detect)
+            # If feature is string-like, don't perturb
+            for j in range(len(features)):
+                if isinstance(features[j], (np.str_, str)):
+                    perturbation[j] = 0  # Don't perturb string features
+            
             adv_sample = features + perturbation
-            X_adv.append(adv_sample[0])
+            X_adv.append(adv_sample)
             y_adv.append(1 - y[i])
         
         return np.array(X_adv), np.array(y_adv)

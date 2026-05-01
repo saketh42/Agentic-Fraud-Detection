@@ -22,6 +22,7 @@ from agents.evaluation_agent import EvaluationAgent
 from agents.drift_agent import DriftAgent
 from agents.balance_agent import BalanceAgent
 from agents.decision_agent import DecisionAgent
+from agents.critic_agent import CriticAgent
 from agents.feedback_agent import FeedbackAgent
 from agents.metrics_tracker import MetricsTracker
 
@@ -67,6 +68,7 @@ class EnhancedMAPEKPipeline:
             'training': TrainingAgent(model_type=self.config['training']['model_type'], adversarial_training=self.config['training']['adversarial_training'], fgsm_epsilon=self.config['training']['fgsm_epsilon']),
             'evaluation': EvaluationAgent(robustness_thresholds=self.config['evaluation']),
             'decision': DecisionAgent(model='llama3', mock_mode=False),
+            'critic': CriticAgent(model='llama3', mock_evaluation=False),
             'feedback': FeedbackAgent()
         }
     

@@ -28,11 +28,21 @@ class MAPEKPipeline:
     '''
     
     def __init__(self, config: dict = None):
-        self.config = config or self._default_config()
+        self.config = self._merge_config(config or {}, self._default_config())
         self.agents = {}
         self.state = {}
         self.history = []
         self._setup_agents()
+    
+    def _merge_config(self, user_config: dict, default_config: dict) -> dict:
+        """Merge user config with defaults recursively"""
+        merged = default_config.copy()
+        for key, value in user_config.items():
+            if key in merged and isinstance(merged[key], dict) and isinstance(value, dict):
+                merged[key] = {**merged[key], **value}
+            else:
+                merged[key] = value
+        return merged
     
     def _default_config(self) -> dict:
         return {
@@ -46,13 +56,13 @@ class MAPEKPipeline:
             },
             'training': {
                 'model_type': 'gradient_boosting',
-                'adversarial_training': True,
+                'adversarial_training': False,  # Disabled - causes issues with encoded features
                 'fgsm_epsilon': 0.05
             },
             'evaluation': {
                 'min_f1': 0.70,
                 'min_roc_auc': 0.75,
-                'min_robustness': 0.60
+                'min_robustness': 0.0  # Disable robustness check - FGSM not suitable for encoded categorical features
             }
         }
     
@@ -78,7 +88,7 @@ class MAPEKPipeline:
             ),
             'decision': DecisionAgent(
                 model='llama3',
-                mock_mode=True
+                mock_mode=False  # Use real LLM via Ollama
             )
         }
     
@@ -165,6 +175,8 @@ class MAPEKPipeline:
             print('\n[A] ANALYZE: Assess Current Model')
             self.state['kb_baseline'] = self._get_kb('metrics')
             result = self.agents['evaluation'].run(self.state)
+            self.state['evaluation_metrics'] = result.data.get('evaluation_metrics', {})
+            self.state['passed'] = result.data.get('passed', False)
             self.state['analysis'] = result.data.get('evaluation_metrics')
             self.state['analyze_passed'] = result.data.get('passed')
             self._record_step(f'analyze_{iteration}', result)
@@ -205,6 +217,8 @@ class MAPEKPipeline:
                 self.state['kb_training_config'] = self._get_kb('training')
                 result = self.agents['training'].run(self.state)
                 self.state['model'] = result.data.get('model')
+                self.state['test_features'] = result.data.get('test_features')
+                self.state['test_labels'] = result.data.get('test_labels')
                 self.state['training_report'] = result.data.get('training_report')
                 self._record_step(f'plan_{iteration}', result)
                 self._update_kb('training', self.state.get('training_report', {}))

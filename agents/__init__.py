@@ -5,6 +5,7 @@ from .training_agent import TrainingAgent, fgsm_attack
 from .evaluation_agent import EvaluationAgent
 from .ingestion_agent import IngestionAgent, ScraperAgent, AnnotationAgent
 from .decision_agent import DecisionAgent
+from .critic_agent import CriticAgent
 from .feature_extraction_agent import FeatureExtractionAgent
 from .knowledge_store import KnowledgeStore
 from .context_retrieval_agent import ContextRetrievalAgent
@@ -24,6 +25,7 @@ __all__ = [
     'ScraperAgent', 
     'AnnotationAgent',
     'DecisionAgent',
+    'CriticAgent',
     'FeatureExtractionAgent',
     'KnowledgeStore',
     'ContextRetrievalAgent',
