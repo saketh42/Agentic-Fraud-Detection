@@ -1,1 +1,10 @@
 venv/
+venv_new/
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+knowledge_store.db
+output/
+*.db
