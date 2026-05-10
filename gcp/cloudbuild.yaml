@@ -1,0 +1,87 @@
+# Cloud Build CI/CD Configuration
+# Deploys API and Frontend to Cloud Run automatically
+
+steps:
+  # Build API Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-api:$COMMIT_SHA'
+      - '-f'
+      - 'gcp/Dockerfile.api'
+      - '.'
+    id: 'Build API'
+
+  # Push API Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-api:$COMMIT_SHA'
+    id: 'Push API'
+    wait: ['Build API']
+
+  # Deploy API to Cloud Run
+  - name: 'gcr.io/google-cloud-platform/cloud-run-deploy-helper'
+    id: 'Deploy API'
+    args:
+      - 'gcloud'
+      - 'run'
+      - 'deploy'
+      - 'fraud-detection-api'
+      - '--image'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-api:$COMMIT_SHA'
+      - '--region'
+      - 'us-central1'
+      - '--platform'
+      - 'managed'
+      - '--allow-unauthenticated'
+      - '--port'
+      - '8000'
+      - '--memory'
+      - '512Mi'
+      - '--cpu'
+      - '1'
+      - '--min-instances'
+      - '0'
+      - '--max-instances'
+      - '10'
+    wait: ['Push API']
+
+  # Build Frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'build'
+      - '-t'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-ui:$COMMIT_SHA'
+      - '-f'
+      - 'gcp/Dockerfile.frontend'
+      - '.'
+    id: 'Build Frontend'
+
+  # Push Frontend Docker image
+  - name: 'gcr.io/cloud-builders/docker'
+    args:
+      - 'push'
+      - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-ui:$COMMIT_SHA'
+    id: 'Push Frontend'
+    wait: ['Build Frontend']
+
+  # Get API URL and deploy Frontend
+  - name: 'gcr.io/google-cloud-platform/cloud-run-deploy-helper'
+    id: 'Deploy Frontend'
+    args:
+      - 'bash'
+      - '-c'
+      - |
+        API_URL=$(gcloud run services describe fraud-detection-api --region us-central1 --format 'value(status.url)')
+        gcloud run deploy fraud-detection-ui --image us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-ui:$COMMIT_SHA --region us-central1 --platform managed --allow-unauthenticated --port 8501 --memory 1Gi --cpu 1 --min-instances 0 --max-instances 5 --set-env-vars="API_BASE_URL=$$API_URL"
+    wait: ['Push Frontend']
+
+# Store images in Artifact Registry
+images:
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-api:$COMMIT_SHA'
+  - 'us-central1-docker.pkg.dev/$PROJECT_ID/fraud-detection-repo/fraud-detection-ui:$COMMIT_SHA'
+
+# Timeout for the entire build
+timeout: '1200s'

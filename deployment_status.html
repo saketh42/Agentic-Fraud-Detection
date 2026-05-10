@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Agentic Fraud Detection Demo - Deployment Ready</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 40px;
+            text-align: center;
+        }
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+        }
+        .header p {
+            font-size: 1.2em;
+            opacity: 0.9;
+        }
+        .status-badge {
+            display: inline-block;
+            background: #10b981;
+            color: white;
+            padding: 8px 20px;
+            border-radius: 50px;
+            font-size: 0.9em;
+            margin-top: 15px;
+        }
+        .content {
+            padding: 40px;
+        }
+        .section {
+            margin-bottom: 30px;
+        }
+        .section h2 {
+            color: #667eea;
+            margin-bottom: 15px;
+            font-size: 1.5em;
+        }
+        .checklist {
+            list-style: none;
+        }
+        .checklist li {
+            padding: 12px 20px;
+            margin: 8px 0;
+            background: #f3f4f6;
+            border-radius: 10px;
+            display: flex;
+            align-items: center;
+        }
+        .checklist li::before {
+            content: "✓";
+            color: #10b981;
+            font-weight: bold;
+            font-size: 1.5em;
+            margin-right: 15px;
+        }
+        .button {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-weight: bold;
+            margin: 10px 5px;
+            transition: transform 0.3s;
+        }
+        .button:hover {
+            transform: scale(1.05);
+        }
+        .files-list {
+            background: #f8f9fa;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: monospace;
+        }
+        .files-list code {
+            display: block;
+            padding: 5px 0;
+        }
+        .code-block {
+            background: #1f2937;
+            color: #10b981;
+            padding: 20px;
+            border-radius: 10px;
+            font-family: monospace;
+            overflow-x: auto;
+        }
+        .footer {
+            background: #f3f4f6;
+            padding: 20px;
+            text-align: center;
+            color: #6b7280;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🛡️ Agentic Fraud Detection Demo</h1>
+            <p>MAPE-K Agentic System for Real-time Fraud Detection</p>
+            <div class="status-badge">✅ Deployment Ready</div>
+        </div>
+        
+        <div class="content">
+            <div class="section">
+                <h2>📋 Deployment Checklist</h2>
+                <ul class="checklist">
+                    <li>Complete project structure with all files</li>
+                    <li>Docker configurations for API and Frontend</li>
+                    <li>GCP deployment scripts ready</li>
+                    <li>Step-by-step deployment guide created</li>
+                    <li>Alternative deployment options documented</li>
+                    <li>CI/CD pipeline configuration complete</li>
+                </ul>
+            </div>
+            
+            <div class="section">
+                <h2>🚀 How to Deploy</h2>
+                <p><strong>Option 1: GCP Cloud Shell (Recommended)</strong></p>
+                <div class="code-block">
+# 1. Open https://shell.cloud.google.com<br>
+# 2. Upload project files<br>
+# 3. Run deployment script<br>
+<br>
+gcloud run deploy fraud-detection-api --source . --region us-central1
+                </div>
+                
+                <p style="margin-top: 20px;"><strong>Option 2: Heroku (Quick & Free)</strong></p>
+                <div class="code-block">
+# Install Heroku CLI, then:<br>
+heroku create fraud-detection-api<br>
+git push heroku main
+                </div>
+            </div>
+            
+            <div class="section">
+                <h2>📁 Project Files Structure</h2>
+                <div class="files-list">
+                    <code>├── app/                     # Web application</code>
+                    <code>│   ├── api/               # API endpoints</code>
+                    <code>│   └── frontend/          # Streamlit UI</code>
+                    <code>├── gcp/                    # GCP deployment files</code>
+                    <code>│   ├── Dockerfile.api     # API container</code>
+                    <code>│   ├── Dockerfile.frontend # UI container</code>
+                    <code>│   └── deploy.sh          # Deployment script</code>
+                    <code>├── simple_api.py          # Flask API server</code>
+                    <code>├── requirements.txt        # Dependencies</code>
+                    <code>└── SETUP_GUIDE.md         # Setup instructions</code>
+                </div>
+            </div>
+            
+            <div class="section" style="text-align: center;">
+                <h2>🎯 Next Steps</h2>
+                <a href="https://shell.cloud.google.com" target="_blank" class="button">Open GCP Cloud Shell</a>
+                <a href="https://cloud.google.com/run/docs" target="_blank" class="button">GCP Documentation</a>
+            </div>
+        </div>
+        
+        <div class="footer">
+            <p>Agentic Fraud Detection Demo - Ready for GCP Deployment</p>
+            <p>Created: May 2026 | Project: MAPE-K Agentic Architecture</p>
+        </div>
+    </div>
+</body>
+</html>
