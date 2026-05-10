@@ -71,7 +71,7 @@ with tab1:
                                   ["unknown", "INR", "USD", "EUR", "GBP"])
             urgency_level = st.select_slider("Urgency Level", 
                                              options=["0.0", "0.2", "0.4", "0.6", "0.8", "1.0"], 
-                                             value="0.5")
+                                             value="0.6")
         
         # Psychological tactics section
         st.markdown("#### Psychological Tactics Scores (0-1)")
