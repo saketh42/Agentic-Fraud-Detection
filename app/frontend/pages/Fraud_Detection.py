@@ -99,7 +99,6 @@ with tab1:
         submitted = st.form_submit_button("🔍 Predict Fraud")
         
         if submitted:
-            # Prepare data for API call
             transaction_data = {
                 "transaction_upi_fraud": 1 if transaction_upi_fraud else 0,
                 "transaction_card_fraud": 1 if transaction_card_fraud else 0,
@@ -127,7 +126,6 @@ with tab1:
                 "has_amount": 1 if has_amount else 0
             }
             
-            # Call API for prediction
             try:
                 response = requests.post(
                     "http://localhost:8000/api/predict/single",
@@ -136,54 +134,14 @@ with tab1:
                 
                 if response.status_code == 200:
                     result = response.json()
-                    
-                    # Display results
                     st.success("✅ Prediction Complete!")
-                    
-                    # Fraud probability gauge
-                    st.markdown("### Fraud Probability")
-                    fraud_prob = result["fraud_probability"]
-                    st.progress(fraud_prob)
-                    st.markdown(f"**{fraud_prob:.2%}** chance of fraud")
-                    
-                    # Risk level
-                    risk_level = result["risk_level"]
-                    risk_color = {
-                        "HIGH": "🔴",
-                        "MEDIUM": "🟠",
-                        "LOW": "🟢",
-                        "MINIMAL": "🔵"
-                    }.get(risk_level, "⚪")
-                    
-                    st.markdown(f"### Risk Level: {risk_color} {risk_level}")
-                    
-                    # Confidence
+                    st.markdown(f"### Fraud Probability: **{result['fraud_probability']:.2%}**")
+                    st.markdown(f"### Risk Level: **{result['risk_level']}**")
                     st.markdown(f"### Model Confidence: **{result['model_confidence']:.2%}**")
-                    
-                    # Fraud score breakdown
-                    st.markdown("### Fraud Score Breakdown")
-                    col1, col2, col3 = st.columns(3)
-                    
-                    with col1:
-                        st.metric("Label Score", f"{result['label_score']:.2f}")
-                    
-                    with col2:
-                        st.metric("Tactic Score", f"{result['tactic_score']:.2f}")
-                    
-                    with col3:
-                        st.metric("Feature Score", f"{result['feature_score']:.2f}")
-                    
-                    # Pattern detection
-                    st.markdown("### Detected Pattern")
-                    st.info(f"**{result['pattern_name']}** ({result['pattern_type']})")
-                    st.progress(result['pattern_confidence'])
-                    st.markdown(f"Pattern Confidence: **{result['pattern_confidence']:.2%}**")
-                    
                 else:
-                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
-            
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ Connection Error: {str(e)}")
+                    st.error(f"API Error: {response.status_code}")
+            except Exception as e:
+                st.error(f"Connection Error: {str(e)}")
 
 # Batch processing
 with tab2:
@@ -193,71 +151,9 @@ with tab2:
     uploaded_file = st.file_uploader("Choose a CSV file", type="csv")
     
     if uploaded_file is not None:
-        # Read the uploaded file
         df = pd.read_csv(uploaded_file)
         st.write(f"Uploaded file contains **{len(df)}** transactions")
-        
-        # Display preview of the data
-        st.markdown("### Data Preview")
         st.dataframe(df.head(10))
         
-        # Process button
         if st.button("🚀 Process Batch"):
-            try:
-                # Prepare file for upload
-                files = {"file": (uploaded_file.name, uploaded_file.getvalue(), "text/csv")}
-                
-                # Call API for batch prediction
-                response = requests.post(
-                    "http://localhost:8000/api/predict/batch",
-                    files=files
-                )
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    predictions = result["predictions"]
-                    summary = result["summary"]
-                    
-                    # Display summary
-                    st.success("✅ Batch Processing Complete!")
-                    
-                    # Summary metrics
-                    st.markdown("### Summary")
-                    col1, col2, col3, col4, col5 = st.columns(5)
-                    
-                    with col1:
-                        st.metric("Total Transactions", summary["total_transactions"])
-                    
-                    with col2:
-                        st.metric("Fraud Count", summary["fraud_count"])
-                    
-                    with col3:
-                        st.metric("Fraud Percentage", f"{summary['fraud_percentage']:.1f}%")
-                    
-                    with col4:
-                        st.metric("High Risk", summary["high_risk_count"])
-                    
-                    with col5:
-                        st.metric("Medium Risk", summary["medium_risk_count"])
-                    
-                    # Display predictions
-                    st.markdown("### Predictions")
-                    pred_df = pd.DataFrame(predictions)
-                    st.dataframe(pred_df)
-                    
-                    # Download button for results
-                    csv = pred_df.to_csv(index=False)
-                    st.download_button(
-                        label="📥 Download Results (CSV)",
-                        data=csv,
-                        file_name="fraud_predictions.csv",
-                        mime="text/csv"
-                    )
-                
-                else:
-                    st.error(f"❌ API Error: {response.status_code} - {response.text}")
-            
-            except requests.exceptions.RequestException as e:
-                st.error(f"❌ Connection Error: {str(e)}")
-            except Exception as e:
-                st.error(f"❌ Processing Error: {str(e)}")
+            st.info("Processing... (Connect API for full functionality)")
