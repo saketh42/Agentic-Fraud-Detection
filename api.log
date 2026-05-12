@@ -1,8 +1,38 @@
-INFO:     Started server process [11854]
-INFO:     Waiting for application startup.
-INFO:     Application startup complete.
-INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
-INFO:     Shutting down
-INFO:     Waiting for application shutdown.
-INFO:     Application shutdown complete.
-INFO:     Finished server process [11854]
+============================================================
+  MAPE-K Agentic Fraud Detection API
+  Running initial pipeline on startup...
+============================================================
+Running MAPE-K pipeline...
+[2026-05-11T11:45:24.653272] IngestionAgent: Ingestion: Loading data...
+[2026-05-11T11:45:24.653289] IngestionAgent: Using provided data from state
+[2026-05-11T11:45:24.659870] IngestionAgent: Loaded 3000 rows, 25 features
+[2026-05-11T11:45:24.661005] IngestionAgent: Class distribution: {1: 2849, 0: 151}
+[2026-05-11T11:45:24.661767] DriftAgent: Checking for concept drift...
+[2026-05-11T11:45:24.690798] DriftAgent: Drift check: PSI=0.0001, KS=0.0182, Detected=False
+[2026-05-11T11:45:24.690824] BalanceAgent: Analyzing class balance...
+[2026-05-11T11:45:24.691473] BalanceAgent: Original: fraud=2849, non_fraud=151
+[2026-05-11T11:45:24.692348] BalanceAgent: Generating 1273 synthetic 0 samples...
+[2026-05-11T11:45:27.121206] BalanceAgent: CTGAN failed: Could not convert string 'nonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonemetanonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonenonemetanonenonenonenonenonenonenonenone' to numeric - using noise injection fallback
+[2026-05-11T11:45:27.164121] BalanceAgent: Balanced: fraud=2849, non_fraud=1424
+[2026-05-11T11:45:27.164292] TrainingAgent: Training classifier...
+[2026-05-11T11:45:27.208164] TrainingAgent: Train: 3418, Test: 855
+[2026-05-11T11:45:28.961054] TrainingAgent: Test F1: 0.9982, ROC-AUC: 0.9998
+[2026-05-11T11:45:28.961175] EvaluationAgent: Evaluating model performance...
+[2026-05-11T11:45:28.977968] EvaluationAgent: Clean F1: 0.9982, ROC-AUC: 0.9998
+[2026-05-11T11:45:29.021113] EvaluationAgent: Robustness: F1_drop=0.2496, robust=True
+Pipeline complete. F1: 0.9982, Drift: False
+✅ Pipeline completed successfully!
+   F1 Score: 0.9982
+   ROC-AUC: 0.9998
+   Drift Detected: False
+============================================================
+  Server running on http://localhost:8000
+============================================================
+ * Serving Flask app 'simple_api'
+ * Debug mode: off
+WARNING: This is a development server. Do not use it in a production deployment. Use a production WSGI server instead.
+ * Running on all addresses (0.0.0.0)
+ * Running on http://127.0.0.1:8000
+ * Running on http://172.17.239.180:8000
+Press CTRL+C to quit
+127.0.0.1 - - [11/May/2026 11:45:34] "GET /health HTTP/1.1" 200 -

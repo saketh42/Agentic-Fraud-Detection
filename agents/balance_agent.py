@@ -169,7 +169,7 @@ class BalanceAgent(BaseAgent):
         for col in synthetic.columns:
             if col != data.columns[-1]:  # skip target
                 if synthetic[col].dtype in [np.float64, np.float32, np.int64, np.int32]:
-                    noise = np.random.normal(0, 0.01, size=len(synthetic))
+                    noise = np.random.normal(0, 0.05, size=len(synthetic))
                     synthetic[col] = synthetic[col].astype(float) + noise
         
         return synthetic

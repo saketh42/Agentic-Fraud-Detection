@@ -197,6 +197,7 @@ class TrainingAgent(BaseAgent):
             return RandomForestClassifier(
                 n_estimators=self.n_estimators,
                 max_depth=10,
+                class_weight='balanced',
                 random_state=self.random_state
             )
         else:
