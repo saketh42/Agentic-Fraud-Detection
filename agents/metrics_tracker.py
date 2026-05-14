@@ -11,46 +11,62 @@ from sklearn.metrics import (
 )
 from .base import BaseAgent, AgentResult
 
-
 class MetricsTracker(BaseAgent):
     """
     Tracks agentic performance metrics.
     
-    Core Classification Metrics:
-    - Accuracy, Precision, Recall, F1
-    - PR-AUC (important for imbalanced data)
+    Core Classification Metrics (Primary):
+    - F1-score
+    - PR-AUC (better for imbalanced fraud data)
     - ROC-AUC
+    - Accuracy, Precision, Recall
     
-    Agentic Metrics:
-    - Planning Accuracy
+    Adversarial Robustness Metrics:
+    - Adversarial Accuracy (worst-case under attack)
+    - FPR@Attack (False Positive Rate under attack)
+    - Robustness Drop (F1 drop from clean to attacked)
+    - Robustness Gain (improvement after feedback)
+    
+    Pattern Learning Metrics:
+    - Pattern Classification Accuracy
+    
+    Agentic Decision Metrics:
+    - Planning Accuracy (appropriate action selection)
+    - Human Override Rate (disagreement with agent)
+    - Action Utility (benefit minus cost)
     - Escalation Precision/Recall
-    - Action Utility
-    - Human Override Rate
     - Mean Time to Decision
     - Memory Improvement Rate
-    
-    Adversarial Metrics:
-    - Adversarial Accuracy
-    - FPR@Attack
-    - Robustness Drop
-    - Robustness Gain (after feedback)
-    
-    Pattern Metrics:
-    - Pattern Classification Accuracy
     """
     
     def __init__(self):
         super().__init__("MetricsTracker")
+        # Core classification tracking
         self.predictions = []
         self.ground_truth = []
+        self.prediction_probabilities = []
+        
+        # Action and planning tracking
         self.actions = []
         self.action_outcomes = []
         self.plans = []
+        self.plans_appropriate = []  # Track if plan was appropriate
         self.human_overrides = []
         self.execution_times = []
+        
+        # Pattern learning tracking
         self.pattern_predictions = []
         self.pattern_ground_truth = []
+        
+        # Adversarial tracking
         self.adversarial_results = []
+        self.clean_metrics = {}
+        self.post_feedback_metrics = {}  # For robustness gain
+        
+        # Feedback tracking
+        self.feedback_history = []
+        self.performance_before_feedback = []
+        self.performance_after_feedback = []
     
     def run(self, state: dict) -> AgentResult:
         action = state.get('metrics_action', 'compute')
@@ -69,9 +85,11 @@ class MetricsTracker(BaseAgent):
         transaction_id = state.get('transaction_id')
         prediction = state.get('prediction')
         ground_truth = state.get('ground_truth')
+        probability = state.get('probability', 0.5)
         action = state.get('action')
         action_outcome = state.get('action_outcome')
         plan = state.get('plan')
+        is_appropriate = state.get('plan_appropriate', False)
         human_override = state.get('human_override', False)
         execution_time = state.get('execution_time', 0.0)
         
@@ -79,12 +97,15 @@ class MetricsTracker(BaseAgent):
             self.predictions.append(prediction)
         if ground_truth is not None:
             self.ground_truth.append(ground_truth)
+        if probability is not None:
+            self.prediction_probabilities.append(probability)
         if action is not None:
             self.actions.append(action)
         if action_outcome is not None:
             self.action_outcomes.append(action_outcome)
         if plan is not None:
             self.plans.append(plan)
+            self.plans_appropriate.append(is_appropriate)
         if human_override is not None:
             self.human_overrides.append(human_override)
         if execution_time is not None:
@@ -113,11 +134,11 @@ class MetricsTracker(BaseAgent):
         )
     
     def _compute_metrics(self, state: dict) -> AgentResult:
-        """Compute all performance metrics"""
+        """Compute all performance metrics - includes all 9 recommended metrics"""
         
         metrics = {}
         
-        # Core classification metrics
+        # === CORE CLASSIFICATION METRICS (Primary) ===
         if self.predictions and self.ground_truth:
             y_pred = np.array(self.predictions)
             y_true = np.array(self.ground_truth)
@@ -127,30 +148,36 @@ class MetricsTracker(BaseAgent):
             metrics['recall'] = float(recall_score(y_true, y_pred, zero_division=0))
             metrics['f1'] = float(f1_score(y_true, y_pred, zero_division=0))
             
-            # PR-AUC (better for imbalanced)
-            if len(np.unique(y_true)) > 1:
+            # PR-AUC (better for imbalanced fraud datasets)
+            if len(np.unique(y_true)) > 1 and self.prediction_probabilities:
                 try:
-                    y_proba = np.array(self.predictions)
+                    y_proba = np.array(self.prediction_probabilities)
                     metrics['pr_auc'] = float(average_precision_score(y_true, y_proba))
                 except:
                     metrics['pr_auc'] = 0.0
         
-        # Agentic metrics
-        metrics['planning_accuracy'] = self._compute_planning_accuracy()
-        metrics['escalation_precision'] = self._compute_escalation_precision()
-        metrics['escalation_recall'] = self._compute_escalation_recall()
-        metrics['human_override_rate'] = self._compute_override_rate()
-        metrics['mean_time_to_decision'] = self._compute_mean_time()
-        metrics['memory_improvement_rate'] = self._compute_memory_improvement()
-        
-        # Adversarial metrics
+        # === ADVERSARIAL ROBUSTNESS METRICS ===
         adv_metrics = self._compute_adversarial_metrics()
         metrics.update(adv_metrics)
         
-        # Pattern metrics
+        # === PATTERN CLASSIFICATION METRICS ===
         metrics['pattern_classification_accuracy'] = self._compute_pattern_accuracy()
         
+        # === AGENTIC DECISION METRICS ===
+        metrics['planning_accuracy'] = self._compute_planning_accuracy()
+        metrics['human_override_rate'] = self._compute_override_rate()
+        metrics['escalation_precision'] = self._compute_escalation_precision()
+        metrics['escalation_recall'] = self._compute_escalation_recall()
+        metrics['mean_time_to_decision'] = self._compute_mean_time()
+        metrics['memory_improvement_rate'] = self._compute_memory_improvement()
+        metrics['action_utility'] = self._compute_action_utility()
+        
+        # === ROBUSTNESS GAIN AFTER FEEDBACK ===
+        metrics['robustness_gain'] = self._compute_robustness_gain()
+        
         self.log("Metrics computed: F1=" + str(round(metrics.get('f1', 0), 3)) + 
+               ", PR-AUC=" + str(round(metrics.get('pr_auc', 0), 3)) +
+               ", Adv_Acc=" + str(round(metrics.get('adversarial_accuracy', 0), 3)) +
                ", Planning=" + str(round(metrics.get('planning_accuracy', 0), 3)))
         
         return AgentResult(
@@ -161,12 +188,16 @@ class MetricsTracker(BaseAgent):
         )
     
     def _compute_planning_accuracy(self) -> float:
-        """Whether selected action was appropriate"""
-        if not self.action_outcomes:
-            return 0.0
+        """Planning Accuracy - Whether the selected action was appropriate"""
+        if not self.plans_appropriate:
+            # Fallback to action_outcomes if plans_appropriate not tracked
+            if not self.action_outcomes:
+                return 0.0
+            correct = sum(1 for o in self.action_outcomes if o in ['true_positive', 'true_negative', 'appropriate'])
+            return correct / len(self.action_outcomes) if self.action_outcomes else 0.0
         
-        correct = sum(1 for o in self.action_outcomes if o in ['true_positive', 'true_negative'])
-        return correct / len(self.action_outcomes) if self.action_outcomes else 0.0
+        correct = sum(1 for p in self.plans_appropriate if p)
+        return correct / len(self.plans_appropriate) if self.plans_appropriate else 0.0
     
     def _compute_escalation_precision(self) -> float:
         """How many escalated cases truly needed escalation"""
@@ -213,7 +244,7 @@ class MetricsTracker(BaseAgent):
         return 0.75  # Default assumption
     
     def _compute_adversarial_metrics(self) -> Dict:
-        """Compute adversarial robustness metrics"""
+        """Compute adversarial robustness metrics - all recommended metrics"""
         if not self.adversarial_results:
             return {
                 'adversarial_accuracy': 0.0,
@@ -221,28 +252,29 @@ class MetricsTracker(BaseAgent):
                 'robustness_drop': 0.0
             }
         
-        original_scores = [r['original_score'] for r in self.adversarial_results]
+        # Calculate adversarial accuracy (worst-case accuracy under attack)
         adv_scores = [r['adversarial_score'] for r in self.adversarial_results]
-        
-        # Accuracy under attack
-        adv_correct = sum(1 for r in self.adversarial_results if r['adversarial_score'] > 0.5)
+        adv_correct = sum(1 for s in adv_scores if s > 0.5)
         adv_accuracy = adv_correct / len(self.adversarial_results) if self.adversarial_results else 0.0
         
-        # FPR at attack threshold
-        fpr_attack = sum(1 for s in adv_scores if s > 0.5 and s < 0.3) / len(adv_scores)
+        # FPR@Attack (False Positive Rate under attack)
+        # Calculate based on actual adversarial predictions vs ground truth
+        fpr_values = [r.get('fpr', 0.0) for r in self.adversarial_results]
+        fpr_at_attack = max(fpr_values) if fpr_values else 0.0
         
-        # Robustness drop
-        orig_correct = sum(1 for s in original_scores if s > 0.5)
-        robustness_drop = (orig_correct / len(original_scores)) - adv_accuracy if original_scores else 0.0
+        # Robustness Drop (F1 drop from clean to adversarial)
+        clean_f1 = self.clean_metrics.get('f1', 0.0)
+        adv_f1 = self.clean_metrics.get('adv_f1', adv_accuracy)
+        robustness_drop = clean_f1 - adv_f1
         
         return {
             'adversarial_accuracy': adv_accuracy,
-            'fpr_at_attack': fpr_attack,
+            'fpr_at_attack': fpr_at_attack,
             'robustness_drop': robustness_drop
         }
     
     def _compute_pattern_accuracy(self) -> float:
-        """Pattern classification accuracy"""
+        """Pattern Classification Accuracy - recommended metric"""
         if not self.pattern_predictions:
             return 0.0
         
@@ -250,15 +282,63 @@ class MetricsTracker(BaseAgent):
                     if p == g)
         return correct / len(self.pattern_predictions) if self.pattern_predictions else 0.0
     
+    def _compute_robustness_gain(self) -> float:
+        """Robustness Gain after feedback - recommended metric"""
+        if not self.performance_before_feedback or not self.performance_after_feedback:
+            return 0.0
+        
+        # Calculate improvement in adversarial accuracy after feedback
+        before_avg = np.mean(self.performance_before_feedback)
+        after_avg = np.mean(self.performance_after_feedback)
+        
+        if before_avg == 0:
+            return 0.0
+        
+        gain = (after_avg - before_avg) / before_avg
+        return float(gain)
+    
+    def _compute_action_utility(self) -> float:
+        """Action Utility - benefit of action minus operational cost"""
+        if not self.action_outcomes:
+            return 0.0
+        
+        # Simple utility calculation
+        true_positives = sum(1 for o in self.action_outcomes if o == 'true_positive')
+        true_negatives = sum(1 for o in self.action_outcomes if o == 'true_negative')
+        false_positives = sum(1 for o in self.action_outcomes if o == 'false_positive')
+        false_negatives = sum(1 for o in self.action_outcomes if o == 'false_negative')
+        
+        # Weights: TP=+1, TN=+0.1, FP=-0.5, FN=-2 (fraud missed is costly)
+        utility = (true_positives * 1.0 + true_negatives * 0.1 - 
+                  false_positives * 0.5 - false_negatives * 2.0)
+        
+        return float(utility / len(self.action_outcomes)) if self.action_outcomes else 0.0
+    
     def reset(self):
         """Reset all tracked metrics"""
+        # Core classification tracking
         self.predictions = []
         self.ground_truth = []
+        self.prediction_probabilities = []
+        
+        # Action and planning tracking
         self.actions = []
         self.action_outcomes = []
         self.plans = []
+        self.plans_appropriate = []
         self.human_overrides = []
         self.execution_times = []
+        
+        # Pattern learning tracking
         self.pattern_predictions = []
         self.pattern_ground_truth = []
+        
+        # Adversarial tracking
         self.adversarial_results = []
+        self.clean_metrics = {}
+        self.post_feedback_metrics = {}
+        
+        # Feedback tracking
+        self.feedback_history = []
+        self.performance_before_feedback = []
+        self.performance_after_feedback = []

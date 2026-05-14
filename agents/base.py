@@ -6,64 +6,45 @@ from typing import Any, Callable
 from dataclasses import dataclass, field
 from datetime import datetime
 import json
+import traceback
+import logging
+
+logging.basicConfig(level=logging.INFO, format='%(asctime)s [%(name)s] %(message)s')
 
 @dataclass
 class AgentResult:
-    """Standard return type for all agents"""
     success: bool
     data: dict = field(default_factory=dict)
     message: str = ""
     metrics: dict = field(default_factory=dict)
 
 class BaseAgent:
-    """Base class for all agents in the MAPE-K pipeline"""
-    
     def __init__(self, name: str):
         self.name = name
         self.logger = []
-    
+
     def run(self, state: dict) -> AgentResult:
-        """Main entry point - override in subclass"""
         raise NotImplementedError
-    
+
     def log(self, message: str):
-        """Log agent activity"""
         timestamp = datetime.now().isoformat()
         entry = f"[{timestamp}] {self.name}: {message}"
         self.logger.append(entry)
-        print(entry)
-    
+        logging.info(f"[{self.name}] {message}")
+
     def get_logs(self) -> list:
         return self.logger
 
+    def safe_execute(self, fn: Callable, state: dict, error_message: str = "Agent error") -> AgentResult:
+        try:
+            return fn(state)
+        except Exception as e:
+            self.log(f"{error_message}: {e}\n{traceback.format_exc()}")
+            return AgentResult(success=False, data={}, message=f"{error_message}: {e}")
 
-class SimplePipeline:
-    """Simple MCP-style pipeline - no LangGraph needed"""
-    
-    def __init__(self):
-        self.agents = {}
-        self.state = {}
-    
-    def register(self, name: str, agent: BaseAgent):
-        """Register an agent"""
-        self.agents[name] = agent
-    
-    def run(self, initial_state: dict = None) -> dict:
-        """Run all registered agents in sequence"""
-        self.state = initial_state or {}
-        
-        for name, agent in self.agents.items():
-            self.log(f"Running {name}...")
-            result = agent.run(self.state)
-            
-            if not result.success:
-                self.log(f"Agent {name} failed: {result.message}")
-                break
-            
-            # Merge result into state
-            self.state.update(result.data)
-        
-        return self.state
-    
-    def log(self, message: str):
-        print(f"[Pipeline] {message}")
+    @staticmethod
+    def validate_json_schema(data: dict, required_fields: list) -> (bool, str):
+        missing = [f for f in required_fields if f not in data]
+        if missing:
+            return False, f"Missing required fields: {missing}"
+        return True, ""
