@@ -91,6 +91,21 @@ def text_to_features(text):
     upi_fraud = 1 if ('upi' in text_lower) or (has_amount and 'pay' in text_lower and uc >= 1) else 0
     card_fraud = 1 if mc >= 2 or 'card' in text_lower or ('pay' in text_lower and amount_value > 0) else 0
 
+    # If bank transfer + account threat + urgency, also flag as UPI fraud
+    # (training data shows bank fraud almost always has upi_fraud=1)
+    if bank_transfer and has_account_threat and uc >= 1:
+        upi_fraud = 1
+
+    # If strong psychological indicators, ensure at least one fraud label is set
+    total_fraud_labels = upi_fraud + card_fraud + bank_transfer + credential_phishing
+    if total_fraud_labels == 0 and (uc >= 2 or fc >= 2 or ac >= 2):
+        if has_account_threat:
+            credential_phishing = 1
+        elif has_amount:
+            bank_transfer = 1
+        else:
+            upi_fraud = 1
+
     return {
         'transaction_id': f"TXN-{abs(hash(text)) % 100000:05d}",
         'urgency': round(urgency, 4),
@@ -124,7 +139,7 @@ def text_to_features(text):
 
 def analyze_transaction(data):
     try:
-        r = requests.post(f"{API_URL}/transaction/process", json=data, timeout=15)
+        r = requests.post(f"{API_URL}/transaction/process", json=data, timeout=30)
         if r.status_code == 200:
             return r.json()
     except Exception as e:
@@ -142,7 +157,7 @@ with col2:
     st.markdown(f"[Swagger Docs]({API_URL}/docs)")
 
 if not api_ok:
-    st.error("API not running. Run: `python run.py` first", icon=":warning:")
+    st.error("API not running. Run: `python run.py` first", icon="⚠️")
     st.stop()
 
 st.markdown("---")
@@ -162,33 +177,32 @@ if analyze and text_input.strip():
     if result and "error" not in result:
         st.markdown("---")
 
+        verdict = result.get('verdict', 'NOT FRAUD')
+        is_fraud = result.get('is_fraud', False)
+        fraud_score = result.get('fraud_score', 0)
         prediction = result.get('prediction', {})
         pattern = result.get('pattern_learning', {})
-        reasoning = result.get('reasoning', {})
         plan = result.get('plan', {})
         adversarial = result.get('adversarial_simulation', {})
 
-        fraud_score = prediction.get('fraud_score', 0)
         risk_level = prediction.get('risk_level', 'LOW')
         pattern_name = pattern.get('detected_pattern', 'UNKNOWN')
         pattern_conf = pattern.get('pattern_confidence', 0)
         adv_risk = adversarial.get('adversarial_risk', 'LOW')
         actions = plan.get('actions', [])
 
-        is_fraud = fraud_score > 0.5
-
         if is_fraud:
             st.markdown(f"""
             <div class="fraud-result">
                 <p class="result-big">FRAUD</p>
-                <p class="result-sub">MAPE-K detected fraud patterns in this message</p>
+                <p class="result-sub">This message was classified as fraudulent</p>
             </div>
             """, unsafe_allow_html=True)
         else:
             st.markdown(f"""
             <div class="safe-result">
                 <p class="result-big">NOT FRAUD</p>
-                <p class="result-sub">MAPE-K classified this as a legitimate message</p>
+                <p class="result-sub">This message was classified as legitimate</p>
             </div>
             """, unsafe_allow_html=True)
 
@@ -202,8 +216,9 @@ if analyze and text_input.strip():
 
         c1, c2 = st.columns(2)
         with c1:
-            st.markdown(f"**Pattern:** `{pattern_name}` ({pattern_conf:.0%})")
+            st.markdown(f"**Verdict:** `{verdict}`")
             st.markdown(f"**Risk Level:** `{risk_level}`")
+            st.markdown(f"**Pattern:** `{pattern_name}` ({pattern_conf:.0%})")
             st.markdown(f"**Adversarial Risk:** `{adv_risk}`")
         with c2:
             st.markdown(f"**Urgency:** `{features.get('urgency', 0):.2f}`")
@@ -213,7 +228,7 @@ if analyze and text_input.strip():
 
         st.markdown(f"**Actions Taken:** `{', '.join(actions)}`")
 
-        with st.expander("Full MAPE-K Response"):
+        with st.expander("Full Response"):
             st.json(result)
     else:
         st.error(f"Analysis failed: {result.get('error', 'Unknown error')}")

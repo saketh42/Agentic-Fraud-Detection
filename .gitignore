@@ -8,3 +8,5 @@ __pycache__/
 knowledge_store.db
 output/
 *.db
+venv_win/
+.venv/

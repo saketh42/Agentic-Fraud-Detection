@@ -11,15 +11,14 @@ sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from agents import (
     MonitorAgent, FeatureExtractionAgent, ContextRetrievalAgent,
-    FraudScoringAgent, LLMReasoningAgent, PatternLearningAgent,
+    FraudScoringAgent, PatternLearningAgent,
     AdversarialSimulationAgent, PlanningAgent, ExecuteAgent,
     FeedbackAgent, KnowledgeStore
 )
 
 
 class MAPEKPipeline:
-    def __init__(self, db_path: str = "knowledge_store.db",
-                 llm_mock_mode: bool = True, llm_model: str = "llama3"):
+    def __init__(self, db_path: str = "knowledge_store.db"):
         self.db_path = db_path
         self.knowledge = KnowledgeStore(db_path)
 
@@ -27,7 +26,6 @@ class MAPEKPipeline:
         self.extractor = FeatureExtractionAgent()
         self.context = ContextRetrievalAgent(db_path)
         self.scorer = FraudScoringAgent()
-        self.reasoner = LLMReasoningAgent(model=llm_model, mock_mode=llm_mock_mode)
         self.pattern_learner = PatternLearningAgent(db_path)
         self.adversarial = AdversarialSimulationAgent()
         self.planner = PlanningAgent()
@@ -81,12 +79,6 @@ class MAPEKPipeline:
         if result.success:
             state.update({'pattern_learning': result.data})
 
-        # [A] LLM Reasoning
-        self.log("[A] LLM Reasoning Agent")
-        result = self.reasoner.run(state)
-        if result.success:
-            state.update({'llm_reasoning': result.data})
-
         # [K] Adversarial Simulation
         self.log("[K] Adversarial Simulation Agent")
         result = self.adversarial.run(state)
@@ -113,9 +105,13 @@ class MAPEKPipeline:
 
         response = self._build_response(state, memory_ok)
         self.log("=" * 60)
+        scoring = state.get('scoring', {})
+        fraud_score = scoring.get('fraud_score', 0)
+        is_fraud = fraud_score > 0.5
         self.log(f"Transaction {state.get('masked_transaction_id', 'unknown')} complete")
-        self.log(f"  Risk: {state.get('scoring', {}).get('risk_level', 'UNKNOWN')}")
-        self.log(f"  Score: {state.get('scoring', {}).get('fraud_score', 0):.3f}")
+        self.log(f"  Verdict: {'FRAUD' if is_fraud else 'NOT FRAUD'}")
+        self.log(f"  Risk: {scoring.get('risk_level', 'UNKNOWN')}")
+        self.log(f"  Score: {fraud_score:.3f}")
         self.log(f"  Actions: {state.get('plan', {}).get('actions', [])}")
         self.log("=" * 60)
 
@@ -126,7 +122,6 @@ class MAPEKPipeline:
             txn_id = state.get('masked_transaction_id', 'unknown')
             extraction = state.get('extraction', {})
             scoring = state.get('scoring', {})
-            reasoning = state.get('llm_reasoning', {})
             pattern = state.get('pattern_learning', {})
             adversarial = state.get('adversarial_simulation', {})
 
@@ -145,15 +140,6 @@ class MAPEKPipeline:
                 predicted_label='FRAUD' if scoring.get('fraud_score', 0) > 0.5 else 'CLEAN',
                 confidence=scoring.get('model_confidence', 0),
                 risk_level=scoring.get('risk_level', 'LOW')
-            )
-
-            self.knowledge.store_reasoning(
-                transaction_id=txn_id,
-                reasoning_summary=reasoning.get('reasoning_summary', ''),
-                evidence=reasoning.get('evidence', []),
-                fraud_pattern=reasoning.get('fraud_pattern', 'UNKNOWN'),
-                adversarial_risk=reasoning.get('adversarial_risk', 'LOW'),
-                recommended_next_step=reasoning.get('recommended_next_step', '')
             )
 
             if pattern.get('detected_pattern'):
@@ -179,13 +165,18 @@ class MAPEKPipeline:
             return False
 
     def _build_response(self, state: dict, memory_ok: bool) -> dict:
+        scoring = state.get('scoring', {})
+        fraud_score = scoring.get('fraud_score', 0)
+        is_fraud = fraud_score > 0.5
         return {
             "transaction_id": state.get('masked_transaction_id', 'unknown'),
+            "verdict": "FRAUD" if is_fraud else "NOT FRAUD",
+            "is_fraud": is_fraud,
+            "fraud_score": fraud_score,
             "feature_profile": state.get('extraction', {}),
-            "prediction": state.get('scoring', {}),
+            "prediction": scoring,
             "pattern_learning": state.get('pattern_learning', {}),
             "adversarial_simulation": state.get('adversarial_simulation', {}),
-            "reasoning": state.get('llm_reasoning', {}),
             "plan": state.get('plan', {}),
             "execution": state.get('execution', {}).get('execution_results', []),
             "memory_update": "SUCCESS" if memory_ok else "FAILED"

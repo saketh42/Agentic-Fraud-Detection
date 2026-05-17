@@ -28,7 +28,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-pipeline = MAPEKPipeline(llm_mock_mode=False)
+pipeline = MAPEKPipeline()
 knowledge = KnowledgeStore()
 
 

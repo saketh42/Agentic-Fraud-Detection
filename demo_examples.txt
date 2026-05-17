@@ -1,0 +1,43 @@
+========================================
+  MAPE-K Fraud Detection — Demo Examples
+========================================
+
+Copy-paste these into the Streamlit UI text area.
+
+--- EXAMPLE 1: FRAUD (UPI Bank Phishing) ---
+
+URGENT! Your SBI bank account has been suspended due to suspicious activity. Click here immediately to verify your identity and restore access: http://sbi-verify.com. Failure to act within 24 hours will result in permanent account closure and legal action.
+
+Expected result: FRAUD | Pattern: UPI_FRAUD | Risk: HIGH
+
+--- EXAMPLE 2: FRAUD (Authority Scam + Money Demand) ---
+
+This is an official notice from the Income Tax Department. Your PAN card has been flagged for fraudulent transactions worth Rs. 50000. Pay a verification fee of Rs. 5000 via UPI immediately to avoid arrest and penalty. Contact our officer at 9876543210. This is your final warning.
+
+Expected result: FRAUD | Pattern: AUTHORITY_SCAM | Risk: HIGH
+
+--- EXAMPLE 3: SAFE (Legitimate Notification) ---
+
+Your monthly account statement for December 2025 is now available. You can view your transaction summary and download receipts by logging into your account dashboard. Thank you for banking with us.
+
+Expected result: NOT FRAUD | Pattern: UNKNOWN | Risk: LOW
+
+--- EXAMPLE 4: FRAUD (Reward Scam + Urgency) ---
+
+CONGRATULATIONS! You have won a cash prize of $10,000 in our exclusive lottery. To claim your reward, send a processing fee of $200 via Western Union within the next 2 hours. This offer expires today only! Act now or lose your prize forever.
+
+Expected result: FRAUD | Pattern: URGENCY_SCAM | Risk: HIGH
+
+--- EXAMPLE 5: SAFE (Normal Email) ---
+
+Hi, just checking in about our meeting scheduled for next Tuesday at 3 PM. Please let me know if the time still works for you. Looking forward to discussing the project updates. Best regards.
+
+Expected result: NOT FRAUD | Pattern: UNKNOWN | Risk: LOW
+
+========================================
+  Demo Tips:
+  - Show a fraud example first (most impactful)
+  - Then show a safe example for contrast
+  - Point out the feature scores (urgency, fear, authority)
+  - Mention the pattern detection matches fraud types from the paper
+========================================

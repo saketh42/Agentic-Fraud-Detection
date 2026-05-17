@@ -58,6 +58,7 @@ class LLMReasoningAgent(BaseAgent):
         )
 
         prompt = f"""Assess this fraud case. Return ONLY valid JSON with these exact keys:
+- is_fraud: boolean (true if this IS fraud, false if legitimate)
 - risk_level: string (LOW/MEDIUM/HIGH/CRITICAL)
 - final_risk_score: float (0.0 to 1.0)
 - reasoning_summary: string (brief analysis)
@@ -86,7 +87,7 @@ JSON:"""
         return json.loads(text) if text else {}
 
     def _validate_output(self, data: dict) -> dict:
-        required = ['risk_level', 'final_risk_score', 'reasoning_summary',
+        required = ['is_fraud', 'risk_level', 'final_risk_score', 'reasoning_summary',
                     'evidence', 'fraud_pattern', 'adversarial_risk', 'recommended_next_step']
         for key in required:
             if key not in data:
@@ -95,6 +96,7 @@ JSON:"""
 
     def _default_value(self, key: str):
         defaults = {
+            'is_fraud': False,
             'risk_level': 'MEDIUM',
             'final_risk_score': 0.5,
             'reasoning_summary': 'LLM output incomplete, using defaults',
@@ -162,6 +164,7 @@ JSON:"""
             next_step = 'ALLOW_TRANSACTION'
 
         reasoning = {
+            'is_fraud': score >= 0.5,
             'risk_level': risk,
             'final_risk_score': round(score, 4),
             'reasoning_summary': reasoning_summary,
